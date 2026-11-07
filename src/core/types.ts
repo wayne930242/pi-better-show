@@ -191,6 +191,8 @@ export type BlockSegment = {
     type: "block";
     kind: K;
     data: BlockDataMap[K];
+    /** The block's exact original text, fences (or an alert's whole `>` quote) included. */
+    raw: string;
     /** Counts the document's blocks of every kind from 0, in order; invalid blocks take no number. */
     index: number;
   };
@@ -200,6 +202,8 @@ export interface InvalidSegment {
   kind: BlockKind;
   /** The block's text between its fences (an alert's whole quote). */
   source: string;
+  /** The block's exact original text, fences (or an alert's whole `>` quote) included. */
+  raw: string;
   error: string;
 }
 export type Segment = MarkdownSegment | BlockSegment | InvalidSegment;
@@ -227,4 +231,9 @@ export interface TextProfile {
   width?: number;
   /** Draws a diagram as text, or returns undefined when it cannot (invalid, or wider than `width`). */
   mermaid?: (source: string, width: number) => string | undefined;
+  /** Kinds whose blocks (valid or invalid) are emitted as their `raw` text, for a surface that draws them itself. */
+  keep?: readonly BlockKind[];
 }
+
+/** The kinds a display surface (a chat UI that draws blocks itself) typically keeps through `toText`. */
+export const DISPLAY_KINDS = ["alert", "cards", "mermaid", "mindmap", "diff", "table", "steps", "stats"] as const;

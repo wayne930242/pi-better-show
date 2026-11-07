@@ -1,6 +1,6 @@
 {
   "name": "pi-better-show",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "Interactive blocks for agent-written Markdown: one vocabulary, text fallback, and answer encoding shared by every host, plus the show_doc extension for pi",
   "type": "module",
   "license": "MIT",

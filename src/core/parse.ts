@@ -55,12 +55,17 @@ const CONVERTERS: { [K in Exclude<BlockKind, "alert">]: Convert<K> } = {
 const messageOf = (error: unknown): string =>
   ((error instanceof Error ? error.message : String(error)).split("\n")[0] as string).replace(/:$/, "");
 
-function convert(kind: Exclude<BlockKind, "alert">, source: string, index: number): BlockSegment | InvalidSegment {
+function convert(
+  kind: Exclude<BlockKind, "alert">,
+  source: string,
+  index: number,
+  raw: string,
+): BlockSegment | InvalidSegment {
   try {
     const data = (CONVERTERS[kind] as Convert<BlockKind>)(source);
-    return { type: "block", kind, data, index } as BlockSegment;
+    return { type: "block", kind, data, raw, index } as BlockSegment;
   } catch (error) {
-    return { type: "invalid", kind, source, error: messageOf(error) };
+    return { type: "invalid", kind, source, raw, error: messageOf(error) };
   }
 }
 
@@ -121,7 +126,12 @@ export function parse(markdown: string): Segment[] {
       const kind = (info.trim().split(/\s+/)[0] as string).toLowerCase();
       if (fenceKinds.has(kind)) {
         flush();
-        const segment = convert(kind as Exclude<BlockKind, "alert">, body.join("\n"), index);
+        const segment = convert(
+          kind as Exclude<BlockKind, "alert">,
+          body.join("\n"),
+          index,
+          lines.slice(i, stop).join("\n"),
+        );
         if (segment.type === "block") index++;
         segments.push(segment);
       } else {
@@ -138,7 +148,7 @@ export function parse(markdown: string): Segment[] {
       const data = alertOf(run);
       if (data) {
         flush();
-        segments.push({ type: "block", kind: "alert", data, index: index++ });
+        segments.push({ type: "block", kind: "alert", data, raw: run.join("\n"), index: index++ });
       } else {
         prose.push(...run);
       }

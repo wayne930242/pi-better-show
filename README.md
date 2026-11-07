@@ -53,8 +53,11 @@ interface TextProfile {
   flavor: "discord" | "line" | "plain";   // Discord Markdown, or plain text
   width?: number;                          // columns a diagram may take; default 60
   mermaid?: (source: string, width: number) => string | undefined;
+  keep?: readonly BlockKind[];             // kinds emitted as their `raw` text instead of converted
 }
 ```
+
+Every `BlockSegment` and `InvalidSegment` carries `raw`: the block's exact original text, fences (or an alert's whole `>` quote) included, byte for byte. Kinds listed in `keep` are emitted as `raw` verbatim, valid or invalid, for a surface that draws them itself; other kinds convert as usual. `DISPLAY_KINDS` (`alert`, `cards`, `mermaid`, `mindmap`, `diff`, `table`, `steps`, `stats`) is the usual `keep` list for such a surface. Without `keep`, output is unchanged.
 
 Renders a document for a surface that cannot draw blocks. A diagram goes through the `mermaid` hook; when there is no hook, or it returns `undefined` or a drawing wider than `width`, the output is the Mermaid source in a code block plus a pointer to the web view. No block-kind fence is left in the output, except Discord's native `diff`.
 

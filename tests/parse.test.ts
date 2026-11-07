@@ -321,6 +321,7 @@ describe("parse: invalid YAML", () => {
       type: "invalid",
       kind: "form",
       source: "questions: [unclosed",
+      raw: "```form\nquestions: [unclosed\n```",
       error: "Flow sequence in block collection must be sufficiently indented and end with a ] at line 1, column 21",
     });
   });

@@ -272,8 +272,10 @@ export function toText(segments: Segment[], profile: TextProfile): string {
     width: profile.width ?? DEFAULT_WIDTH,
     mermaid: profile.mermaid,
   };
+  const keep = new Set<string>(profile.keep ?? []);
   return segments
     .map((segment) => {
+      if (segment.type !== "markdown" && keep.has(segment.kind)) return segment.raw;
       if (segment.type === "markdown") return dialect.markdown ? segment.text : plainProse(segment.text);
       if (segment.type === "invalid") return invalid(dialect, segment);
       return block(dialect, segment);

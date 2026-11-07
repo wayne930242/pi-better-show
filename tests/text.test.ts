@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
-import { BLOCK_KINDS, parse, toText } from "../src/core/index.ts";
+import { BLOCK_KINDS, DISPLAY_KINDS, parse, toText } from "../src/core/index.ts";
 
 /**
  * Golden texts, one per block kind. Each was read by hand against the spec ("Core API": alert to bold title plus
@@ -254,5 +254,56 @@ describe("toText: table and options details", () => {
       },
     );
     expect(text).toBe("• n: b · v: 10\n• n: a · v: 2\n• n: d · v: 1\n• n: c");
+  });
+});
+
+describe("raw and keep", () => {
+  const ALERT = "> [!TIP] 小技巧\n> 先 **備份**\n> 再動手";
+  const FENCES: Record<string, string> = {
+    mermaid: "```mermaid\ngraph TD\n  A --> B\n```",
+    diff: "```diff\n@@ -1 +1 @@\n-old\n+new\n```",
+    cards: "```cards\n- {title: Speed, tone: ok}\n```",
+    table: "```table\ncolumns: [a]\nrows:\n  - [1]\n```",
+    stats: "```stats\n- {label: Users, value: 1}\n```",
+  };
+  const kept = (markdown: string) =>
+    parse(markdown).map((segment) => (segment.type === "markdown" ? undefined : segment.raw));
+
+  test("every valid block carries its exact original text", () => {
+    for (const [kind, raw] of Object.entries(FENCES))
+      expect(kept(`intro\n\n${raw}\n\noutro`)).toEqual([undefined, raw, undefined]);
+    expect(kept(`intro\n\n${ALERT}\n\noutro`)).toEqual([undefined, ALERT, undefined]);
+  });
+
+  test("an indented, tilde-fenced or unclosed block keeps its text", () => {
+    const tilde = "~~~stats\n- {label: Users, value: 1}\n~~~";
+    expect(kept(tilde)).toEqual([tilde]);
+    const indented = "  ```mermaid\n  graph TD\n  ```";
+    expect(kept(indented)).toEqual([indented]);
+    const open = "```stats\n- {label: Users, value: 1}";
+    expect(kept(open)).toEqual([open]);
+  });
+
+  test("an invalid block carries its exact original text", () => {
+    const bad = "```cards\n- [unclosed\n```";
+    const [segment] = parse(bad);
+    expect(segment?.type).toBe("invalid");
+    expect(kept(bad)).toEqual([bad]);
+  });
+
+  test("keep round-trips the fixture byte for byte", () => {
+    const md = readFileSync(new URL("./fixtures/all-blocks.md", import.meta.url), "utf8").trimEnd();
+    expect(toText(parse(md), { flavor: "discord", keep: BLOCK_KINDS })).toBe(md);
+  });
+
+  test("keep emits an invalid block of a kept kind as raw, and converts the rest", () => {
+    const bad = "```cards\n- [unclosed\n```";
+    const md = `${bad}\n\n${ALERT}\n\n${FENCES.stats}`;
+    const text = toText(parse(md), { flavor: "plain", keep: ["cards", "stats"] });
+    expect(text).toBe(`${bad}\n\n小技巧\n> 先 備份\n> 再動手\n\n${FENCES.stats}`);
+  });
+
+  test("DISPLAY_KINDS lists the display kinds", () => {
+    expect(DISPLAY_KINDS).toEqual(["alert", "cards", "mermaid", "mindmap", "diff", "table", "steps", "stats"]);
   });
 });
