@@ -11,7 +11,7 @@ import {
   type PageServer,
   RAW_POLICY,
 } from "../../src/extension/server.ts";
-import { http, link, postJson, tree, waitForStream } from "./helpers.ts";
+import { http, link, postJson, postRaw, tree, waitForStream } from "./helpers.ts";
 
 const servers: PageServer[] = [];
 afterEach(() => {
@@ -163,12 +163,16 @@ describe("the page server's security", () => {
   test("an answer larger than the cap is refused, whether it says so or not", async () => {
     const t = await setup({ "doc/a.md": "# A" }, ["doc/a.md"]);
     const big = "x".repeat(MAX_ANSWER_BYTES + 10);
-    const declared = await http(`${t.server.base}/answer`, { method: "POST", body: big });
+    const declared = await postRaw(`${t.server.base}/answer`, big);
     expect(declared.status).toBe(413);
     expect(t.posts).toHaveLength(0);
     // Without a declared length the server counts what arrives.
     const chunks = Array.from({ length: 12 }, () => "y".repeat(100_000));
-    const streamed = await http(`${t.server.base}/answer`, { method: "POST", chunks }).catch(() => ({ status: 0 }));
+    const streamed = await http(`${t.server.base}/answer`, {
+      method: "POST",
+      headers: { "content-type": "application/json", origin: new URL(t.server.base).origin },
+      chunks,
+    }).catch(() => ({ status: 0 }));
     expect([413, 0]).toContain(streamed.status);
     expect(t.posts).toHaveLength(0);
     const small = await postJson(`${t.server.base}/answer`, {
@@ -183,7 +187,11 @@ describe("the page server's security", () => {
     const t = await setup({ "doc/a.md": "# A" }, ["doc/a.md"]);
     // 400,000 characters of three bytes each: under the cap as characters, 1.2 MB as bytes.
     const chunks = Array.from({ length: 4 }, () => "中".repeat(100_000));
-    const streamed = await http(`${t.server.base}/answer`, { method: "POST", chunks }).catch(() => ({ status: 0 }));
+    const streamed = await http(`${t.server.base}/answer`, {
+      method: "POST",
+      headers: { "content-type": "application/json", origin: new URL(t.server.base).origin },
+      chunks,
+    }).catch(() => ({ status: 0 }));
     expect([413, 0]).toContain(streamed.status);
     expect(t.posts).toHaveLength(0);
   });
@@ -191,12 +199,44 @@ describe("the page server's security", () => {
   test("an answer must be JSON of the shape of an Answer", async () => {
     const t = await setup({ "doc/a.md": "# A" }, ["doc/a.md"]);
     const answer = `${t.server.base}/answer`;
-    expect((await http(answer, { method: "POST", body: "not json" })).status).toBe(400);
+    expect((await postRaw(answer, "not json")).status).toBe(400);
     expect((await postJson(answer, { answerId: "1", answer: { kind: "nope", fields: [] } })).status).toBe(400);
     expect((await postJson(answer, { answerId: "", answer: { kind: "form", fields: [] } })).status).toBe(400);
     expect((await postJson(answer, { answer: { kind: "form", fields: [] } })).status).toBe(400);
     expect((await postJson(answer, { answerId: "1", answer: { kind: "form", fields: [["a", 1]] } })).status).toBe(400);
     expect((await http(answer)).status).toBe(405);
+  });
+
+  test("only the host page's own origin may post an answer or open the event stream, and only as JSON", async () => {
+    const t = await setup({ "doc/a.md": "# A" }, ["doc/a.md"]);
+    const answer = `${t.server.base}/answer`;
+    const good = JSON.stringify({ answerId: "1", answer: { kind: "suggest", fields: [["text", "ok"]] } });
+    // A sandboxed frame's own POST carries Origin: null and may be a no-cors text/plain request.
+    expect((await postRaw(answer, good, { origin: "null" })).status).toBe(403);
+    expect((await postRaw(answer, good, { origin: "http://evil.example" })).status).toBe(403);
+    expect(
+      (await http(answer, { method: "POST", body: good, headers: { "content-type": "application/json" } })).status,
+    ).toBe(403);
+    expect((await postRaw(answer, good, { "content-type": "text/plain" })).status).toBe(403);
+    expect(t.posts).toHaveLength(0);
+    expect((await postRaw(answer, good)).status).toBe(200);
+    expect(
+      (await postRaw(answer, good.replace('"1"', '"2"'), { origin: "", "sec-fetch-site": "same-origin" })).status,
+    ).toBe(200);
+    const stream = `${t.server.base}/events?page=${encodeURIComponent(new URL(t.url("doc/a.md")).pathname)}`;
+    expect((await http(stream)).status).toBe(403);
+    expect((await http(stream, { headers: { "sec-fetch-site": "cross-site" } })).status).toBe(403);
+  });
+
+  test("every response, JSON and empty ones too, carries a content security policy", async () => {
+    const t = await setup({ "doc/a.md": "# A" }, ["doc/a.md"]);
+    const replies = [
+      await postJson(`${t.server.base}/answer`, { answerId: "1", answer: { kind: "form", fields: [["a", "b"]] } }),
+      await postJson(`${t.server.base}/answer`, null),
+      await http(`${t.server.base}/answer`),
+      await http(`${t.server.base}/files/nowhere`),
+    ];
+    for (const reply of replies) expect(reply.headers["content-security-policy"]).toBeTruthy();
   });
 
   test("a body that is not an object gets a 400 and throws nothing", async () => {
@@ -419,7 +459,9 @@ describe("assets, events, and capabilities", () => {
       },
     );
     expect(got).toBe(true);
-    expect((await http(`${t.server.base}/events?page=/nowhere`)).status).toBe(400);
+    expect(
+      (await http(`${t.server.base}/events?page=/nowhere`, { headers: { "sec-fetch-site": "same-origin" } })).status,
+    ).toBe(400);
   });
 
   test("goes idle once the last page's stream closes, and a server nobody reaches goes idle too", async () => {

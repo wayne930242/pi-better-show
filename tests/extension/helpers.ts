@@ -31,8 +31,16 @@ export function http(
   });
 }
 
-export const postJson = (url: string, value: unknown): Promise<Reply> =>
-  http(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(value) });
+/** A POST as the host page makes it: from the server's own origin, as JSON. */
+export const postRaw = (url: string, body: string, headers: Record<string, string> = {}): Promise<Reply> =>
+  http(url, {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: new URL(url).origin, ...headers },
+    body,
+  });
+
+export const postJson = (url: string, value: unknown, headers: Record<string, string> = {}): Promise<Reply> =>
+  postRaw(url, JSON.stringify(value), headers);
 
 /** A scratch tree of files (relative path to content), at its real path. */
 export function tree(files: Record<string, string>): string {
@@ -50,7 +58,8 @@ export const link = (root: string, target: string, name: string): void =>
 /** Reads an event stream until `text` shows up in it, or the wait ends. */
 export function waitForStream(url: string, text: string, trigger: () => void, ms = 3000): Promise<boolean> {
   return new Promise((done) => {
-    const req = request(url, (response) => {
+    // The host page opens its stream from the server's own origin.
+    const req = request(url, { headers: { "sec-fetch-site": "same-origin" } }, (response) => {
       let seen = "";
       response.setEncoding("utf8");
       response.on("data", (chunk: string) => {

@@ -3,7 +3,7 @@ import { type AnswerReply, serverPrefix } from "./host-config.ts";
 
 /**
  * The page around an agent's HTML or TSX page. The page itself runs in a sandboxed frame without
- * `allow-same-origin`, so it cannot reach the server; it asks this parent, by `postMessage`, to carry its answers.
+ * `allow-same-origin`, so the server refuses its own requests (Origin null); it asks this parent, by `postMessage`, to carry its answers.
  * The parent trusts a message only from its own frame (see bridge.ts).
  */
 

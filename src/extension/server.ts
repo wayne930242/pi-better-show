@@ -90,8 +90,10 @@ export function injectFrameHook(html: string, prefix: string): string {
   return `${hook}${html}`;
 }
 
+/** Even a status with no body, or JSON, carries a policy, so a browser that renders it can run nothing from it. */
 const finish = (response: ServerResponse, status: number) => {
   response.statusCode = status;
+  response.setHeader("content-security-policy", RAW_POLICY);
   response.end();
 };
 
@@ -166,7 +168,7 @@ export function createPageServer(options: PageServerOptions): Promise<PageServer
 
   const body = (request: IncomingMessage, response: ServerResponse, then: (text: string) => void) => {
     if (Number(request.headers["content-length"] ?? 0) > MAX_ANSWER_BYTES) {
-      response.writeHead(413, { connection: "close" });
+      response.writeHead(413, { connection: "close", "content-security-policy": RAW_POLICY });
       response.end();
       return;
     }
@@ -177,7 +179,7 @@ export function createPageServer(options: PageServerOptions): Promise<PageServer
       text += chunk;
       bytes += Buffer.byteLength(chunk);
       if (bytes > MAX_ANSWER_BYTES) {
-        response.writeHead(413, { connection: "close" });
+        response.writeHead(413, { connection: "close", "content-security-policy": RAW_POLICY });
         response.end();
         request.destroy();
       }
@@ -195,11 +197,28 @@ export function createPageServer(options: PageServerOptions): Promise<PageServer
   };
 
   const json = (response: ServerResponse, status: number, value: unknown) => {
-    response.writeHead(status, { "content-type": "application/json", "cache-control": "no-store" });
+    response.writeHead(status, {
+      "content-type": "application/json",
+      "content-security-policy": RAW_POLICY,
+      "cache-control": "no-store",
+    });
     response.end(JSON.stringify(value));
   };
 
-  const postAnswer = (request: IncomingMessage, response: ServerResponse): void =>
+  /**
+   * Whether the request came from the host page itself. A sandboxed frame has an opaque origin and can still send a
+   * no-cors POST (text/plain) or open a stream, so these routes check where the request came from, not just who knows the token.
+   */
+  const fromHostPage = (request: IncomingMessage): boolean => {
+    const origin = request.headers.origin;
+    if (typeof origin === "string" && origin !== "")
+      return origin === `http://127.0.0.1:${port}` || origin === `http://localhost:${port}`;
+    return request.headers["sec-fetch-site"] === "same-origin";
+  };
+
+  const postAnswer = (request: IncomingMessage, response: ServerResponse): void => {
+    const type = (request.headers["content-type"] ?? "").split(";")[0]?.trim().toLowerCase();
+    if (!fromHostPage(request) || type !== "application/json") return finish(response, 403);
     body(request, response, (text) => {
       let parsed: { answerId?: unknown; answer?: unknown; page?: unknown };
       try {
@@ -223,13 +242,19 @@ export function createPageServer(options: PageServerOptions): Promise<PageServer
       }
       json(response, 200, reply);
     });
+  };
 
-  const sendEvents = (url: URL, response: ServerResponse) => {
+  const sendEvents = (url: URL, request: IncomingMessage, response: ServerResponse) => {
+    if (request.headers["sec-fetch-site"] !== "same-origin") return finish(response, 403);
     const asked = pathAfter(url.searchParams.get("page") ?? "", filesPrefix);
     if (!asked) return finish(response, 400);
     // Keyed by real path, as the files are served and reloaded, so a symlinked path still reloads.
     const page = realOrSame(asked);
-    response.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-store" });
+    response.writeHead(200, {
+      "content-type": "text/event-stream",
+      "content-security-policy": RAW_POLICY,
+      "cache-control": "no-store",
+    });
     response.write(": open\n\n");
     const open = streams.get(page) ?? new Set();
     streams.set(page, open.add(response));
@@ -255,7 +280,7 @@ export function createPageServer(options: PageServerOptions): Promise<PageServer
       });
       response.end(svg);
     } catch (error) {
-      response.writeHead(422, { "content-type": "text/plain; charset=utf-8" });
+      response.writeHead(422, { "content-type": "text/plain; charset=utf-8", "content-security-policy": RAW_POLICY });
       response.end(error instanceof Error ? error.message : String(error));
     }
   };
@@ -374,7 +399,7 @@ export function createPageServer(options: PageServerOptions): Promise<PageServer
     if (url.pathname === `${prefix}/answer`)
       return request.method === "POST" ? postAnswer(request, response) : finish(response, 405);
     if (request.method !== "GET") return finish(response, 405);
-    if (url.pathname === `${prefix}/events`) return sendEvents(url, response);
+    if (url.pathname === `${prefix}/events`) return sendEvents(url, request, response);
     if (url.pathname === `${prefix}/diagram.svg`) return sendDiagram(url, response);
     if (url.pathname.startsWith(`${prefix}/assets/`)) {
       const found = await asset(url.pathname.slice(`${prefix}/assets/`.length));
