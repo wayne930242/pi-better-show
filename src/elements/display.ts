@@ -7,8 +7,6 @@ import type { Strings } from "./strings.ts";
 /** The blocks that only show: callout, cards, steps, stats, diff, diagram. */
 
 const displayCss = `
-.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr)); gap: var(--_gap); }
-.grid > .panel { margin: 0; }
 
 .callout > .callout-head { display: flex; align-items: baseline; color: color-mix(in srgb, var(--_t) 78%, var(--_fg)); }
 

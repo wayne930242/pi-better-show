@@ -58,8 +58,10 @@ Text fields (`body`, `hint`, `note`) take restricted inline Markdown: bold, ital
 
 ## Elements
 
+- Unit 2 (`./elements`, `./react`) ships the thirteen block elements below; `pbs-doc` is deferred to unit 3 (the extension), which needs it for local pages, and has no part in this release.
 - One element per block: `pbs-callout`, `pbs-cards`, `pbs-options`, `pbs-form`, `pbs-review`, `pbs-mindmap`, `pbs-suggest`, `pbs-checklist`, `pbs-table`, `pbs-steps`, `pbs-stats`, `pbs-diff`, `pbs-diagram`, plus `pbs-doc` that renders a whole document (prose through core's Markdown, for the local page and hosts without a renderer of their own).
 - Data in, events out: a host sets the `data` property (the block's parsed data) or a `data-json` attribute; the element never reads HTML. On submit it dispatches `pbs-answer` (bubbles, composed) with an `Answer`; the host delivers it and sets `answered` (the submitted fields) to lock the element and show what was sent, including after a reload.
+- Unit 2 decisions on answers: a pick or chip locks itself once a listener takes the event (`pbs-answer` is cancelable, and setting `answered`, even to `undefined`, clears the local lock); a form, review, or checklist stays editable until the host sets `answered`, as pi-herdr-doc-review's did. Review items resolve `image` and `page` only through `configure({imageUrl, pageUrl})`; `page` shows in a frame with `sandbox="allow-scripts"` and never without a host hook.
 - `pbs-diagram` shows an image URL the host supplies through `configure({diagramUrl(source, scheme)})`; hosts serve the SVG from `./server`, so no diagram markup enters the page.
 - Shadow DOM with constructed stylesheets (`adoptedStyleSheets`), so a CSP without `unsafe-inline` works (roundtable sets `default-src 'self'`).
 - Strings in zh-Hant and English by `lang` (element, then document), overridable through `configure({strings})`.

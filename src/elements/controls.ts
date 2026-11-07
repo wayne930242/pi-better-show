@@ -36,6 +36,7 @@ export const controlCss = `
 .pros li::before { content: "+"; color: var(--_ok); }
 .cons li::before { content: "\\2212"; color: var(--_risk); }
 
+.option > .row { margin-top: 0.75rem; }
 .panel[data-selected] { border-color: var(--_accent); background: color-mix(in srgb, var(--_accent) 8%, var(--_bg)); }
 .panel[data-dim] { opacity: 0.6; }
 .btn[aria-disabled="true"] { opacity: 0.6; cursor: default; }

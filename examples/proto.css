@@ -1,0 +1,12 @@
+body {
+  margin: 1rem;
+  font:
+    15px / 1.5 system-ui,
+    sans-serif;
+  background: #fff8e1;
+  color: #3b2a06;
+}
+h1 {
+  font-size: 1.2rem;
+  margin: 0 0 0.5rem;
+}

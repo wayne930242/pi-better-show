@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en" data-scheme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self'; frame-src 'self'">
+  <title>pi-better-show elements</title>
+  <link rel="stylesheet" href="/demo.css">
+</head>
+<body>
+  <header class="bar" role="toolbar" aria-label="Demo controls">
+    <strong>pbs-* elements</strong>
+    <fieldset data-control="scheme"><legend>Scheme</legend>
+      <button type="button" data-value="light" aria-pressed="true">Light</button>
+      <button type="button" data-value="dark" aria-pressed="false">Dark</button>
+    </fieldset>
+    <fieldset data-control="density"><legend>Density</legend>
+      <button type="button" data-value="comfortable" aria-pressed="true">Comfortable</button>
+      <button type="button" data-value="compact" aria-pressed="false">Compact</button>
+    </fieldset>
+    <fieldset data-control="lang"><legend>Language</legend>
+      <button type="button" data-value="en" aria-pressed="true">English</button>
+      <button type="button" data-value="zh-Hant" aria-pressed="false">繁體中文</button>
+    </fieldset>
+    <fieldset data-control="host"><legend>Host look</legend>
+      <button type="button" data-value="default" aria-pressed="true">Default</button>
+      <button type="button" data-value="roundtable" aria-pressed="false">Roundtable</button>
+      <button type="button" data-value="straw" aria-pressed="false">Straw boss</button>
+    </fieldset>
+    <label class="lock"><input type="checkbox" id="lock" checked> Lock after answer</label>
+  </header>
+  <main id="stage"></main>
+  <aside id="log" aria-live="polite"><h2>Last answer</h2><pre id="answer">(nothing sent yet)</pre></aside>
+  <script type="module" src="/demo.js"></script>
+</body>
+</html>

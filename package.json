@@ -18,7 +18,8 @@
   },
   "scripts": {
     "test": "bun test",
-    "check": "tsc --noEmit && tsc -p tsconfig.core.json && biome check ."
+    "check": "tsc --noEmit && tsc -p tsconfig.core.json && biome check .",
+    "demo": "bun examples/serve.ts"
   },
   "dependencies": {
     "beautiful-mermaid": "1.1.3",

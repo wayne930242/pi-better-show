@@ -1,0 +1,162 @@
+/* Page chrome only. The elements bring their own look; the host-look blocks below map a host's tokens onto --pbs-*. */
+:root[data-scheme="light"] {
+  color-scheme: light;
+}
+:root[data-scheme="dark"] {
+  color-scheme: dark;
+}
+html {
+  background: light-dark(#f4f5f7, #0e1116);
+  color: light-dark(#1f2328, #e6edf3);
+  font:
+    15px / 1.5 system-ui,
+    sans-serif;
+}
+body {
+  margin: 0;
+  padding: 0 1rem 6rem;
+}
+.bar {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.25rem;
+  align-items: center;
+  padding: 0.6rem 0;
+  background: light-dark(#f4f5f7, #0e1116);
+}
+.bar fieldset {
+  display: flex;
+  gap: 0.25rem;
+  align-items: center;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.bar legend {
+  float: left;
+  margin-right: 0.4rem;
+  padding: 0;
+  color: light-dark(#59636e, #9ba3ad);
+  font-size: 0.85em;
+}
+.bar button {
+  font: inherit;
+  padding: 0.2em 0.8em;
+  color: inherit;
+  background: transparent;
+  border: 1px solid light-dark(#6e7781, #7d8590);
+  border-radius: 6px;
+  cursor: pointer;
+}
+.bar button[aria-pressed="true"] {
+  color: light-dark(#fff, #0d1117);
+  background: light-dark(#0969da, #4493f8);
+  border-color: transparent;
+}
+.lock {
+  font-size: 0.9em;
+}
+#stage {
+  max-width: 56rem;
+  margin: 0 auto;
+}
+#stage h2 {
+  margin: 2rem 0 0.5rem;
+  font-size: 1.4rem;
+}
+#stage p.md {
+  margin: 0 0 1rem;
+}
+.demo-block {
+  margin: 0 0 1.5rem;
+}
+.demo-block > figcaption {
+  margin: 0 0 0.35rem;
+  color: light-dark(#59636e, #9ba3ad);
+  font-size: 0.8em;
+}
+.demo-block code {
+  font:
+    0.95em ui-monospace,
+    Menlo,
+    monospace;
+}
+#log {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  width: min(24rem, calc(100vw - 2rem));
+  max-height: 30vh;
+  overflow: auto;
+  padding: 0.6rem 0.8rem;
+  background: light-dark(#fff, #151b23);
+  border: 1px solid light-dark(#d1d9e0, #3d444d);
+  border-radius: 8px;
+  font-size: 0.85em;
+}
+#log h2 {
+  margin: 0 0 0.3rem;
+  font-size: 0.9em;
+}
+#log pre {
+  margin: 0;
+  white-space: pre-wrap;
+  font: inherit;
+}
+
+/* Roundtable: tokens.css values */
+[data-host="roundtable"] {
+  --pbs-bg: light-dark(#ffffff, #171a20);
+  --pbs-surface: light-dark(#eef0f4, #1d2128);
+  --pbs-fg: light-dark(#16181d, #e9ebf0);
+  --pbs-muted: light-dark(#5a6270, #a0a7b4);
+  --pbs-line: light-dark(#dfe2e8, #2a2f39);
+  --pbs-control: light-dark(#7f8797, #69717f);
+  --pbs-accent: light-dark(#3a5bd9, #8ea4ff);
+  --pbs-on-accent: light-dark(#ffffff, #0c1230);
+  --pbs-note: light-dark(#3a5bd9, #8ea4ff);
+  --pbs-ok: light-dark(#17703f, #5fd699);
+  --pbs-warn: light-dark(#8a5a00, #f0b95b);
+  --pbs-risk: light-dark(#b42318, #ff8f85);
+  --pbs-radius: 10px;
+  --pbs-font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+}
+/* Straw boss: style.css :root (dark only) */
+[data-host="straw"] {
+  color-scheme: dark;
+  --pbs-bg: #1f2335;
+  --pbs-surface: #24283b;
+  --pbs-fg: #c0caf5;
+  --pbs-muted: #868dba;
+  --pbs-line: #3b4261;
+  --pbs-control: #737aa2;
+  --pbs-accent: #7dcfff;
+  --pbs-on-accent: #16161e;
+  --pbs-note: #7dcfff;
+  --pbs-ok: #9ece6a;
+  --pbs-warn: #e0af68;
+  --pbs-risk: #f7768e;
+  --pbs-radius: 6px;
+  --pbs-font: ui-rounded, "Avenir Next", "Trebuchet MS", system-ui, sans-serif;
+}
+[data-host="straw"] #stage {
+  background: #16161e;
+  padding: 1rem;
+  border-radius: 8px;
+}
+[data-host="straw"] .demo-block > figcaption {
+  color: #868dba;
+}
+[data-host="straw"] #stage h2,
+[data-host="straw"] #stage p.md {
+  color: #c0caf5;
+}
+
+/* Screenshot runs: only the blocks. */
+[data-shoot] .bar,
+[data-shoot] #log {
+  display: none;
+}

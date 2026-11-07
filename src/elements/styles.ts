@@ -81,7 +81,9 @@ legend { padding: 0; }
   background: color-mix(in srgb, var(--_t, var(--_muted)) 9%, var(--_bg));
   border-color: color-mix(in srgb, var(--_t, var(--_muted)) 32%, var(--_line));
 }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr)); gap: var(--_gap); }
 .heading { font-weight: 650; }
+.heading .badge { margin-left: 0.5em; }
 .panel > .heading { margin-bottom: 0.4em; }
 
 .badge {
