@@ -321,6 +321,48 @@ describe("agent HTML and TSX pages", () => {
   });
 });
 
+describe("TSX bundles read only what the page may read", () => {
+  const bundleOf = async (files: Record<string, string>, page = "doc/c.tsx") => {
+    const t = await setup(files, [page]);
+    const reply = await http(`${t.url(page).replace("/files/", "/frame/")}?bundle`);
+    return { t, body: reply.body };
+  };
+
+  test("a ../ import, a dot-directory import, and an absolute import each fail the build", async () => {
+    const secret = "SECRET-TOKEN-1234";
+    const one = await bundleOf({
+      "doc/c.tsx": 'import s from "../secret.json"; export default () => <p>{s.token}</p>;',
+      "secret.json": JSON.stringify({ token: secret }),
+    });
+    expect(one.body).toContain("This page could not be built");
+    expect(one.body).not.toContain(secret);
+    const two = await bundleOf({
+      "doc/c.tsx": 'import s from "./.keys/auth.json"; export default () => <p>{s.token}</p>;',
+      "doc/.keys/auth.json": JSON.stringify({ token: secret }),
+    });
+    expect(two.body).toContain("This page could not be built");
+    expect(two.body).not.toContain(secret);
+    const dir = tree({ "secret.txt": secret });
+    const three = await bundleOf({
+      "doc/c.tsx": `import s from ${JSON.stringify(join(dir, "secret.txt"))}; export default () => <p>{s}</p>;`,
+    });
+    expect(three.body).toContain("This page could not be built");
+    expect(three.body).not.toContain(secret);
+  });
+
+  test("a sibling module and a json file below the page's folder still build", async () => {
+    const ok = await bundleOf({
+      "doc/c.tsx":
+        'import { word } from "./util.ts"; import data from "./data.json"; export default () => <p>{word + data.n}</p>;',
+      "doc/util.ts": 'export const word = "SIBLING-OK";',
+      "doc/data.json": '{"n":"JSON-OK"}',
+    });
+    expect(ok.body).not.toContain("This page could not be built");
+    expect(ok.body).toContain("SIBLING-OK");
+    expect(ok.body).toContain("JSON-OK");
+  });
+});
+
 describe("assets, events, and capabilities", () => {
   test("serves the page scripts and stylesheet, and builds each script once", async () => {
     const t = await setup({ "doc/a.md": "# A" }, ["doc/a.md"]);

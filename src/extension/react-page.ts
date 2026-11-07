@@ -1,7 +1,8 @@
+import { realpathSync } from "node:fs";
 import { createRequire } from "node:module";
-import { basename, dirname } from "node:path";
+import { basename, dirname, extname, isAbsolute, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
-import { build } from "esbuild";
+import { build, type Plugin } from "esbuild";
 import { escapeHtml } from "./render.ts";
 
 /**
@@ -15,6 +16,71 @@ const require = createRequire(import.meta.url);
 /** The node_modules holding the React this package ships (under its own names, so a host's React is never touched). */
 const REACT_MODULES = dirname(dirname(require.resolve("pbs-page-react/package.json")));
 const PI_KIT = fileURLToPath(new URL("./client/kit.tsx", import.meta.url));
+
+/** The package's own sources and React: what a page imports by name, and what those import in turn. */
+const PACKAGE_SRC = realpathSync(fileURLToPath(new URL("..", import.meta.url)));
+const TRUSTED_ROOTS = [PACKAGE_SRC, realpathSync(REACT_MODULES)];
+/** The names a page may import that live outside its folder. */
+const ALLOWED_BARE = /^(pi-kit|react|react-dom)(\/|$)/;
+/** What a bundle may load from disk. `.json` is read only after the path check; `.css` is emptied. */
+const LOADED_EXTENSIONS = new Set([".js", ".jsx", ".ts", ".tsx", ".mjs", ".cjs", ".json", ".css"]);
+
+const within = (root: string, path: string): boolean => {
+  const inside = relative(root, path);
+  return inside !== "" && !inside.startsWith("..") && !isAbsolute(inside);
+};
+const real = (path: string): string => {
+  try {
+    return realpathSync(path);
+  } catch {
+    return path;
+  }
+};
+
+/**
+ * A page is untrusted: esbuild would inline any file its imports reach (`../../.pi/agent/auth.json`). Besides the
+ * names above, an import must land on a real path that the server would serve for this page, with no dot part.
+ */
+function confine(page: string, canServe: (path: string) => boolean): Plugin {
+  const folder = real(dirname(page));
+  const mayRead = (path: string): boolean =>
+    within(folder, path) &&
+    relative(folder, path)
+      .split(sep)
+      .every((part) => !part.startsWith(".")) &&
+    canServe(path);
+  const trusted = (path: string): boolean => TRUSTED_ROOTS.some((root) => path === root || within(root, path));
+  return {
+    name: "pbs-confine",
+    setup(build) {
+      build.onResolve({ filter: /.*/ }, async (args) => {
+        if (args.pluginData === "pbs") return undefined;
+        const found = await build.resolve(args.path, {
+          kind: args.kind,
+          importer: args.importer,
+          resolveDir: args.resolveDir,
+          namespace: args.namespace,
+          pluginData: "pbs",
+        });
+        if (found.errors.length > 0) return { errors: found.errors };
+        if (found.external) return found;
+        const path = real(found.path);
+        const importer = args.importer ? real(args.importer) : "";
+        const allowed = ALLOWED_BARE.test(args.path) || (importer !== "" && trusted(importer)) || mayRead(path);
+        if (!allowed) {
+          return { errors: [{ text: `cannot import ${args.path}: a page may read only files below its own folder` }] };
+        }
+        return { path: found.path, namespace: found.namespace, sideEffects: found.sideEffects };
+      });
+      build.onLoad({ filter: /.*/, namespace: "file" }, (args) => {
+        if (LOADED_EXTENSIONS.has(extname(args.path).toLowerCase())) return undefined;
+        return {
+          errors: [{ text: `cannot bundle ${basename(args.path)}: only script, JSON, and CSS files are bundled` }],
+        };
+      });
+    },
+  };
+}
 
 /** The page a React file is served as; the frame hook loads before the bundle, which loads from the same URL with `?bundle`. */
 export function reactShell(path: string, prefix: string, source: string): string {
@@ -61,7 +127,7 @@ document.getElementById("pbs-root").replaceChildren(pre);
 `;
 
 /** Builds the page's bundle on each load, so an edit shows on the next reload. */
-export async function bundleReactPage(path: string): Promise<string> {
+export async function bundleReactPage(path: string, canServe: (path: string) => boolean): Promise<string> {
   try {
     const result = await build({
       stdin: { contents: entry(path), resolveDir: dirname(path), loader: "jsx", sourcefile: "pbs-page-entry.jsx" },
@@ -73,6 +139,7 @@ export async function bundleReactPage(path: string): Promise<string> {
       target: "es2022",
       jsx: "automatic",
       nodePaths: [REACT_MODULES],
+      plugins: [confine(path, canServe)],
       alias: {
         "pi-kit": PI_KIT,
         react: "pbs-page-react",

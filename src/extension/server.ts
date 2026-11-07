@@ -275,7 +275,7 @@ export function createPageServer(options: PageServerOptions): Promise<PageServer
           reactShell(path, prefix, content.toString("utf8")),
         );
       }
-      void bundleReactPage(path).then((script) =>
+      void bundleReactPage(path, options.canServe).then((script) =>
         send(response, "text/javascript; charset=utf-8", FRAME_POLICY, script),
       );
       return;
