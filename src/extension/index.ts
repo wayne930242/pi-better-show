@@ -36,21 +36,25 @@ export function install(pi: ExtensionAPI, deps: Deps = defaultDeps()): BetterSho
     return typeof path === "string" ? deps.realpath(isAbsolute(path) ? path : resolve(cwd, path)) : undefined;
   };
 
-  pi.on("tool_call", (event, ctx) => {
-    if (event.toolName === "bash") show.agentWillWrite(undefined);
+  // A call holds back the watcher from the moment it runs until it ends, keyed by its id: a call that is blocked
+  // before it runs, or aborted, never holds anything, and the turn's end releases any that did not report an end.
+  pi.on("tool_execution_start", (event, ctx) => {
+    if (event.toolName === "bash") show.agentWillWrite(event.toolCallId, undefined);
     else if (event.toolName === "write" || event.toolName === "edit") {
-      const path = pathOf(ctx.cwd, event.input);
-      if (path) show.agentWillWrite(path);
+      const path = pathOf(ctx.cwd, event.args);
+      if (path) show.agentWillWrite(event.toolCallId, path);
     }
   });
+  pi.on("turn_end", () => show.agentSettled());
+  pi.on("agent_end", () => show.agentSettled());
 
   pi.on("tool_result", async (event, ctx) => {
     show.setContext(ctx);
-    if (event.toolName === "bash") return show.agentWrote(undefined);
+    if (event.toolName === "bash") return show.agentWrote(event.toolCallId, undefined);
     if (event.toolName !== "write" && event.toolName !== "edit") return;
     const path = pathOf(ctx.cwd, event.input);
     if (!path) return;
-    show.agentWrote(path);
+    show.agentWrote(event.toolCallId, path);
     if (event.isError || !ctx.hasUI || process.env[AUTO_OPEN_ENV] === "off") return;
     const followUp = show.miniSddFollowUp(path);
     if (followUp.length === 0) return;

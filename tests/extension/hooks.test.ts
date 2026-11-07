@@ -129,23 +129,64 @@ describe("hooks", () => {
     expect(notices).toEqual([]);
   });
 
-  test("tool_call and tool_result keep the agent's own writes out of the user's edits", async () => {
+  /** What pi fires when a tool call begins to run: the call, then its execution. */
+  const begin = async (t: ReturnType<typeof setup>, ctx: unknown, id: string, toolName: string, input: unknown) => {
+    await t.fire("tool_call", { toolCallId: id, toolName, input }, ctx);
+    await t.fire("tool_execution_start", { toolCallId: id, toolName, args: input }, ctx);
+  };
+  const end = async (t: ReturnType<typeof setup>, ctx: unknown, id: string, toolName: string, input: unknown) => {
+    await t.fire("tool_execution_end", { toolCallId: id, toolName, isError: false }, ctx);
+    await t.fire("tool_result", { toolCallId: id, toolName, input, isError: false }, ctx);
+  };
+
+  test("a running write or edit keeps the agent's own change out of the user's edits", async () => {
     const t = setup({ files: FILES, installed: ["code"] });
     await t.show.show(t.root, ["n.md"], "r");
     const ctx = { cwd: t.root, hasUI: true, isIdle: () => true, ui: { notify: () => {} } };
-    await t.fire("tool_call", { toolName: "edit", input: { path: "n.md" } }, ctx);
+    await begin(t, ctx, "c1", "edit", { path: "n.md" });
     t.save("n.md", "one\ntwo\nagent\n");
     expect(t.sent).toHaveLength(0);
-    await t.fire("tool_result", { toolName: "edit", input: { path: "n.md" }, isError: false }, ctx);
+    await end(t, ctx, "c1", "edit", { path: "n.md" });
     t.save("n.md", "one\ntwo\nagent\n");
     expect(t.sent).toHaveLength(0);
-    await t.fire("tool_call", { toolName: "bash", input: { command: "sed -i s/one/1/ n.md" } }, ctx);
-    writeFileSync(t.path("n.md"), "1\ntwo\nagent\n");
-    t.save("n.md", "1\ntwo\nagent\n");
-    await t.fire("tool_result", { toolName: "bash", input: { command: "x" }, isError: false }, ctx);
-    t.save("n.md", "1\ntwo\nagent\n");
+    t.save("n.md", "one\ntwo\nagent\nuser\n");
+    expect(t.sent).toHaveLength(1);
+  });
+
+  test("a tool call that never ends does not silence the saves that follow", async () => {
+    const t = setup({ files: FILES, installed: ["code"] });
+    await t.show.show(t.root, ["n.md"], "r");
+    const ctx = { cwd: t.root, hasUI: true, isIdle: () => true, ui: { notify: () => {} } };
+    // Blocked by another extension: the call was announced and never ran.
+    await t.fire("tool_call", { toolCallId: "b1", toolName: "bash", input: { command: "x" } }, ctx);
+    await t.fire("tool_call", { toolCallId: "b2", toolName: "edit", input: { path: "n.md" } }, ctx);
+    t.save("n.md", "one\ntwo\nfirst\n");
+    expect(t.sent).toHaveLength(1);
+    // Started and aborted: no result arrives, and the turn's end releases it.
+    await begin(t, ctx, "b3", "bash", { command: "sleep 100" });
+    await begin(t, ctx, "b4", "edit", { path: "n.md" });
+    await t.fire("agent_end", {}, ctx);
+    t.save("n.md", "one\ntwo\nfirst\nsecond\n");
+    expect(t.sent).toHaveLength(2);
+    expect(t.sent[1]?.message.content).toContain("+second");
+  });
+
+  test("a save while a shell command runs is reported when it ends, labeled as possibly including the command's own changes", async () => {
+    const t = setup({ files: FILES, installed: ["code"] });
+    await t.show.show(t.root, ["n.md"], "r");
+    const ctx = { cwd: t.root, hasUI: true, isIdle: () => true, ui: { notify: () => {} } };
+    await begin(t, ctx, "s1", "bash", { command: "make" });
+    t.save("n.md", "one\ntwo\nuser\n");
     expect(t.sent).toHaveLength(0);
-    t.save("n.md", "1\ntwo\nagent\nuser\n");
+    await end(t, ctx, "s1", "bash", { command: "make" });
+    expect(t.sent).toHaveLength(1);
+    expect(t.sent[0]?.message.content).toContain("n.md changed while a shell command ran");
+    expect(t.sent[0]?.message.content).toContain("may include the command's own changes");
+    expect(t.sent[0]?.message.content).toContain("+user");
+    // The same content is not reported twice, and a shell command that left the file alone reports nothing.
+    t.save("n.md", "one\ntwo\nuser\n");
+    await begin(t, ctx, "s2", "bash", { command: "ls" });
+    await end(t, ctx, "s2", "bash", { command: "ls" });
     expect(t.sent).toHaveLength(1);
   });
 

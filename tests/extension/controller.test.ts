@@ -63,12 +63,12 @@ describe("show_doc page view", () => {
   test("the agent's edit bumps the revision once per real change, and reloads open pages", async () => {
     const t = setup();
     await t.show.show(t.root, ["a.md"], "r", "page");
-    t.show.agentWrote(t.path("a.md"));
+    t.show.agentWrote("w", t.path("a.md"));
     expect(lists(t).at(-1)?.documents[0]?.revision).toBe(1);
     writeFileSync(t.path("a.md"), "# A2");
-    t.show.agentWrote(t.path("a.md"));
+    t.show.agentWrote("w", t.path("a.md"));
     expect(lists(t).at(-1)?.documents[0]?.revision).toBe(2);
-    t.show.agentWrote(t.path("a.md"));
+    t.show.agentWrote("w", t.path("a.md"));
     expect(
       lists(t)
         .filter((list) => list.documents.length > 0)
@@ -84,9 +84,9 @@ describe("show_doc page view", () => {
     const url = new URL(t.opened[0] as string);
     const stream = `${url.origin}${url.pathname.replace(/\/files\/.*$/, "")}/events?page=${encodeURIComponent(url.pathname)}`;
     const reloaded = await waitForStream(stream, "event: reload", () => {
-      t.show.agentWrote(t.path("a.md"));
+      t.show.agentWrote("w", t.path("a.md"));
       writeFileSync(t.path("a.md"), "# A edited");
-      t.show.agentWrote(t.path("a.md"));
+      t.show.agentWrote("w", t.path("a.md"));
     });
     expect(reloaded).toBe(true);
   });
@@ -354,10 +354,10 @@ describe("show_doc edit view", () => {
     const t = setup({ files: FILES, installed: ["code"] });
     await t.show.show(t.root, ["n.md"], "r");
     // The edit tool starts, the file changes, the watcher notices before the tool result arrives.
-    t.show.agentWillWrite(t.path("n.md"));
+    t.show.agentWillWrite("e1", t.path("n.md"));
     t.save("n.md", "one\ntwo\nthree\nagent line\n");
     expect(t.sent).toHaveLength(0);
-    t.show.agentWrote(t.path("n.md"));
+    t.show.agentWrote("e1", t.path("n.md"));
     t.save("n.md", "one\ntwo\nthree\nagent line\n");
     expect(t.sent).toHaveLength(0);
     // The next user save diffs against the agent's version.
@@ -365,12 +365,15 @@ describe("show_doc edit view", () => {
     expect(t.sent[0]?.message.content).toContain("+user line");
     expect(t.sent[0]?.message.content).not.toContain("agent line\n+");
     // A shell command may touch any shown file.
-    t.show.agentWillWrite(undefined);
+    t.show.agentWillWrite("s1", undefined);
     t.save("n.md", "from the shell\n");
     expect(t.sent).toHaveLength(1);
-    t.show.agentWrote(undefined);
+    // Its end reports what changed in the window, as possibly the command's own.
+    t.show.agentWrote("s1", undefined);
+    expect(t.sent).toHaveLength(2);
+    expect(t.sent[1]?.message.content).toContain("changed while a shell command ran");
     t.save("n.md", "from the shell\n");
-    expect(t.sent).toHaveLength(1);
+    expect(t.sent).toHaveLength(2);
   });
 
   test("a long diff is cut, and the shutdown stops watching", async () => {

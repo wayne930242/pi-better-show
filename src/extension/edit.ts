@@ -77,14 +77,17 @@ export function shellWords(line: string): string[] {
 }
 
 /** The user's edits as zero-context hunks: the `@@` headers carry the line numbers. */
-export function feedbackMessage(display: string, diff: string): string {
+export function feedbackMessage(display: string, diff: string, duringShell = false): string {
   const hunks = diff
     .split("\n")
     .filter((line) => !line.startsWith("--- ") && !line.startsWith("+++ "))
     .join("\n");
   const body =
     hunks.length > MAX_DIFF_CHARS ? `${hunks.slice(0, MAX_DIFF_CHARS)}\n… (truncated; read ${display})\n` : hunks;
-  return `User edited ${display}:\n\`\`\`diff\n${body}\`\`\``;
+  const head = duringShell
+    ? `${display} changed while a shell command ran; this may include the command's own changes, not only the user's edits:`
+    : `User edited ${display}:`;
+  return `${head}\n\`\`\`diff\n${body}\`\`\``;
 }
 
 interface Watched {
@@ -92,13 +95,22 @@ interface Watched {
   /** The content the agent last saw. */
   snapshot: string;
   stop: () => void;
+  onError: (error: Error) => void;
+}
+
+/** A tool call that may write: `path` is undefined for a shell command, which may touch any shown file and keeps what each held when it began. */
+interface Active {
+  path: string | undefined;
+  before: Map<string, string>;
 }
 
 export function createEditSession(deps: EditDeps, onEdit: (message: string, display: string) => void) {
   const watched = new Map<string, Watched>();
-  /** Paths the agent is writing now: a change seen meanwhile is the agent's, and its tool result resyncs the snapshot. */
-  const writing = new Map<string, number>();
-  let shells = 0;
+  /**
+   * Tool calls running now, by tool call id: a change seen meanwhile is the agent's. They are keyed by id so a call
+   * that never ends (aborted, or blocked after it was announced) is released by `settle` instead of silencing every save.
+   */
+  const active = new Map<string, Active>();
   let scratch: string | undefined;
 
   /** Opens the paths in the user's editor: the chosen command, else VS Code, else the system's text editor. */
@@ -129,20 +141,47 @@ export function createEditSession(deps: EditDeps, onEdit: (message: string, disp
     return "the system text editor";
   }
 
-  const paused = (path: string): boolean => shells > 0 || (writing.get(path) ?? 0) > 0;
+  const paused = (path: string): boolean =>
+    [...active.values()].some((call) => call.path === undefined || call.path === path);
+
+  /** Reports how `path` went from `from` to `content`, and makes `content` the version the agent saw. */
+  function report(path: string, doc: Watched, from: string, content: string, duringShell: boolean): void {
+    scratch ??= deps.makeDir();
+    const before = join(scratch, "before");
+    deps.writeFile(before, from);
+    const diff = deps.run("diff", ["-U0", "--label", `a/${doc.display}`, "--label", `b/${doc.display}`, before, path]);
+    if (diff.status !== 0 && diff.status !== 1) throw new Error(`diff failed: ${diff.stderr.trim()}`);
+    doc.snapshot = content;
+    onEdit(feedbackMessage(doc.display, diff.stdout, duringShell), doc.display);
+  }
 
   function onChange(path: string): void {
     const doc = watched.get(path);
     if (!doc || paused(path)) return;
     const content = deps.readFile(path);
     if (content === undefined || content === doc.snapshot) return;
-    scratch ??= deps.makeDir();
-    const before = join(scratch, "before");
-    deps.writeFile(before, doc.snapshot);
-    const diff = deps.run("diff", ["-U0", "--label", `a/${doc.display}`, "--label", `b/${doc.display}`, before, path]);
-    if (diff.status !== 0 && diff.status !== 1) throw new Error(`diff failed: ${diff.stderr.trim()}`);
-    doc.snapshot = content;
-    onEdit(feedbackMessage(doc.display, diff.stdout), doc.display);
+    report(path, doc, doc.snapshot, content, false);
+  }
+
+  /** A call ended: the version the agent saw is what is on disk now, except that a shell command's window reports what changed in it. */
+  function release(id: string): void {
+    const call = active.get(id);
+    if (!call) return;
+    active.delete(id);
+    for (const [path, doc] of watched) {
+      if (call.path !== undefined && call.path !== path) continue;
+      const content = deps.readFile(path);
+      if (content === undefined) continue;
+      const began = call.before.get(path);
+      if (call.path === undefined && began !== undefined && content !== began) {
+        try {
+          report(path, doc, began, content, true);
+        } catch (error) {
+          doc.snapshot = content;
+          doc.onError(error as Error);
+        }
+      } else doc.snapshot = content;
+    }
   }
 
   return {
@@ -161,31 +200,30 @@ export function createEditSession(deps: EditDeps, onEdit: (message: string, disp
           onError(error as Error);
         }
       });
-      watched.set(path, { display, snapshot: content, stop });
+      watched.set(path, { display, snapshot: content, stop, onError });
     },
     has: (path: string): boolean => watched.has(path),
-    /** The agent is about to write `path` (or run a shell command, when `path` is undefined). */
-    willWrite(path: string | undefined): void {
-      if (path === undefined) shells++;
-      else writing.set(path, (writing.get(path) ?? 0) + 1);
+    /** The tool call `id` is about to write `path` (or run a shell command, when `path` is undefined). */
+    willWrite(id: string, path: string | undefined): void {
+      const before = new Map<string, string>();
+      if (path === undefined) {
+        for (const watchedPath of watched.keys()) {
+          const content = deps.readFile(watchedPath);
+          if (content !== undefined) before.set(watchedPath, content);
+        }
+      }
+      active.set(id, { path, before });
     },
-    /** The agent finished: the version it saw is whatever is on disk now. */
-    wrote(path: string | undefined): void {
-      if (path === undefined) shells = Math.max(0, shells - 1);
-      else {
-        const left = (writing.get(path) ?? 1) - 1;
-        if (left <= 0) writing.delete(path);
-        else writing.set(path, left);
-      }
-      for (const [watchedPath, doc] of watched) {
-        if (path === undefined || path === watchedPath) doc.snapshot = deps.readFile(watchedPath) ?? doc.snapshot;
-      }
+    /** The tool call `id` finished. */
+    wrote: release,
+    /** The turn or run ended: calls that never reported an end are released. */
+    settle(): void {
+      for (const id of [...active.keys()]) release(id);
     },
     close(): void {
       for (const doc of watched.values()) doc.stop();
       watched.clear();
-      writing.clear();
-      shells = 0;
+      active.clear();
       if (scratch) deps.removeDir(scratch);
       scratch = undefined;
     },

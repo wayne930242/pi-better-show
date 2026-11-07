@@ -386,8 +386,8 @@ export function createBetterShow(pi: ExtensionAPI, deps: Deps = defaultDeps()) {
   };
 
   /** After the agent changed a shown document, the pages reload it and the version the agent saw is the new one. */
-  const agentWrote = (path: string | undefined): void => {
-    edits.wrote(path);
+  const agentWrote = (id: string, path: string | undefined): void => {
+    edits.wrote(id);
     if (path === undefined) {
       reloadPages([...pages.keys()]);
       server?.refreshFrames();
@@ -400,7 +400,10 @@ export function createBetterShow(pi: ExtensionAPI, deps: Deps = defaultDeps()) {
   };
 
   /** The agent is about to write: a change the watcher sees until the result arrives is not the user's. */
-  const agentWillWrite = (path: string | undefined): void => edits.willWrite(path);
+  const agentWillWrite = (id: string, path: string | undefined): void => edits.willWrite(id, path);
+
+  /** A turn or run ended: tool calls that never ended no longer hold back the user's saves. */
+  const agentSettled = (): void => edits.settle();
 
   const shutdown = (): void => {
     closed = true;
@@ -422,6 +425,7 @@ export function createBetterShow(pi: ExtensionAPI, deps: Deps = defaultDeps()) {
     miniSddFollowUp,
     agentWrote,
     agentWillWrite,
+    agentSettled,
     shutdown,
     setContext: (next: ExtensionContext) => {
       ctx = next;
