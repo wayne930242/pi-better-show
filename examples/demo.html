@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Agent page</title>
+  <style>
+    body { font: 16px/1.6 system-ui; max-width: 40rem; margin: 2rem auto; padding: 0 1rem; }
+    label { display: block; margin: 0.75rem 0; }
+  </style>
+</head>
+<body>
+  <h1>An agent's HTML page</h1>
+  <p>It runs in a sandboxed frame. Its form answers the agent through the page around it.</p>
+  <form action="cgi-bin:pi-answer">
+    <label>Name <input name="name" value="Ada"></label>
+    <label>Colour
+      <select name="colour"><option>red</option><option>blue</option></select>
+    </label>
+    <button type="submit">Send to the agent</button>
+  </form>
+  <p><button type="button" id="script">Send from a script</button></p>
+  <p id="storage"></p>
+  <script>
+    document.getElementById("script").addEventListener("click", () => {
+      window.piBetterShow.send({ source: "script", clicked: "yes" });
+    });
+    try { localStorage.setItem("x", "1"); document.getElementById("storage").textContent = "storage: allowed"; }
+    catch { document.getElementById("storage").textContent = "storage: blocked by the sandbox"; }
+  </script>
+</body>
+</html>
