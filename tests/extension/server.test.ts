@@ -179,6 +179,15 @@ describe("the page server's security", () => {
     expect(t.posts).toHaveLength(1);
   });
 
+  test("the cap counts bytes, not characters", async () => {
+    const t = await setup({ "doc/a.md": "# A" }, ["doc/a.md"]);
+    // 400,000 characters of three bytes each: under the cap as characters, 1.2 MB as bytes.
+    const chunks = Array.from({ length: 4 }, () => "中".repeat(100_000));
+    const streamed = await http(`${t.server.base}/answer`, { method: "POST", chunks }).catch(() => ({ status: 0 }));
+    expect([413, 0]).toContain(streamed.status);
+    expect(t.posts).toHaveLength(0);
+  });
+
   test("an answer must be JSON of the shape of an Answer", async () => {
     const t = await setup({ "doc/a.md": "# A" }, ["doc/a.md"]);
     const answer = `${t.server.base}/answer`;
@@ -188,6 +197,22 @@ describe("the page server's security", () => {
     expect((await postJson(answer, { answer: { kind: "form", fields: [] } })).status).toBe(400);
     expect((await postJson(answer, { answerId: "1", answer: { kind: "form", fields: [["a", 1]] } })).status).toBe(400);
     expect((await http(answer)).status).toBe(405);
+  });
+
+  test("a body that is not an object gets a 400 and throws nothing", async () => {
+    const t = await setup({ "doc/a.md": "# A" }, ["doc/a.md"]);
+    const uncaught: unknown[] = [];
+    const record = (error: unknown) => void uncaught.push(error);
+    process.on("uncaughtException", record);
+    try {
+      for (const value of [null, [], "x", 1]) {
+        expect((await postJson(`${t.server.base}/answer`, value)).status).toBe(400);
+      }
+      await new Promise((done) => setTimeout(done, 20));
+    } finally {
+      process.off("uncaughtException", record);
+    }
+    expect(uncaught).toEqual([]);
     expect((await http(t.url("doc/a.md"), { method: "POST" })).status).toBe(405);
     expect(t.posts).toHaveLength(0);
   });

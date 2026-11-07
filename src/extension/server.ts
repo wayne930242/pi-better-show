@@ -171,17 +171,26 @@ export function createPageServer(options: PageServerOptions): Promise<PageServer
       return;
     }
     let text = "";
+    let bytes = 0;
     request.setEncoding("utf8");
     request.on("data", (chunk: string) => {
       text += chunk;
-      if (text.length > MAX_ANSWER_BYTES) {
+      bytes += Buffer.byteLength(chunk);
+      if (bytes > MAX_ANSWER_BYTES) {
         response.writeHead(413, { connection: "close" });
         response.end();
         request.destroy();
       }
     });
     request.on("end", () => {
-      if (text.length <= MAX_ANSWER_BYTES) then(text);
+      if (bytes > MAX_ANSWER_BYTES) return;
+      // This runs outside `handle`'s catch: a throw here would be an uncaught exception in pi.
+      try {
+        then(text);
+      } catch {
+        if (!response.headersSent) json(response, 500, { accepted: false, reason: "error" });
+        else response.end();
+      }
     });
   };
 
@@ -196,6 +205,9 @@ export function createPageServer(options: PageServerOptions): Promise<PageServer
       try {
         parsed = JSON.parse(text) as typeof parsed;
       } catch {
+        return json(response, 400, { accepted: false, reason: "invalid" });
+      }
+      if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
         return json(response, 400, { accepted: false, reason: "invalid" });
       }
       const answer = parseAnswer(parsed.answer);
