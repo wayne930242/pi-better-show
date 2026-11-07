@@ -34,7 +34,15 @@ function session() {
   edits.watch(path, "spec.md", "one\n", (error) => {
     throw error;
   });
-  return { path, sent, edits, done: () => (edits.close(), rmSync(dir, { recursive: true, force: true })) };
+  return {
+    path,
+    sent,
+    edits,
+    done: () => {
+      edits.close();
+      rmSync(dir, { recursive: true, force: true });
+    },
+  };
 }
 
 describe("edit session around shell commands", () => {

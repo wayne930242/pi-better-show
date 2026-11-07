@@ -270,7 +270,7 @@ describe("raw and keep", () => {
     parse(markdown).map((segment) => (segment.type === "markdown" ? undefined : segment.raw));
 
   test("every valid block carries its exact original text", () => {
-    for (const [kind, raw] of Object.entries(FENCES))
+    for (const raw of Object.values(FENCES))
       expect(kept(`intro\n\n${raw}\n\noutro`)).toEqual([undefined, raw, undefined]);
     expect(kept(`intro\n\n${ALERT}\n\noutro`)).toEqual([undefined, ALERT, undefined]);
   });
