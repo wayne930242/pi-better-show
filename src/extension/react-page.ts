@@ -17,9 +17,23 @@ const require = createRequire(import.meta.url);
 const REACT_MODULES = dirname(dirname(require.resolve("pbs-page-react/package.json")));
 const PI_KIT = fileURLToPath(new URL("./client/kit.tsx", import.meta.url));
 
-/** The package's own sources and React: what a page imports by name, and what those import in turn. */
+/** A package's folder, found from the package that depends on it. */
+const packageDir = (name: string, from = import.meta.url): string =>
+  realpathSync(dirname(createRequire(from).resolve(`${name}/package.json`)));
+const REACT_DOM = packageDir("pbs-page-react-dom");
+/**
+ * The package's own sources and the React it ships: what a page imports by name, and what those import in turn.
+ * Only the packages a bundle uses (React, its scheduler, and core's yaml) are trusted, not the whole node_modules
+ * they sit in, which is pi's shared one once installed.
+ */
 const PACKAGE_SRC = realpathSync(fileURLToPath(new URL("..", import.meta.url)));
-const TRUSTED_ROOTS = [PACKAGE_SRC, realpathSync(REACT_MODULES)];
+const TRUSTED_ROOTS = [
+  PACKAGE_SRC,
+  packageDir("pbs-page-react"),
+  REACT_DOM,
+  packageDir("yaml"),
+  packageDir("scheduler", `${REACT_DOM}/package.json`),
+];
 /** The names a page may import that live outside its folder. */
 const ALLOWED_BARE = /^(pi-kit|react|react-dom)(\/|$)/;
 /** What a bundle may load from disk. `.json` is read only after the path check; `.css` is emptied. */

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { symlinkSync } from "node:fs";
+import { realpathSync, symlinkSync } from "node:fs";
 import { join } from "node:path";
 import { createAllowList } from "../../src/extension/files.ts";
 import {
@@ -438,6 +438,15 @@ describe("TSX bundles read only what the page may read", () => {
     }
   });
 
+  test("a page reaches no package in node_modules other than the React it is given", async () => {
+    const climb = `pi-kit/${"../".repeat(24)}${realpathSync(join(import.meta.dir, "../../node_modules/esbuild/package.json")).slice(1)}`;
+    const out = await bundleOf({
+      "doc/c.tsx": `import p from ${JSON.stringify(climb)}; export default () => <p>{p.name + "-INLINED"}</p>;`,
+    });
+    expect(out.body).toContain("This page could not be built");
+    expect(out.body).not.toContain('"esbuild"');
+  });
+
   test("a sibling module and a json file below the page's folder still build", async () => {
     const ok = await bundleOf({
       "doc/c.tsx":
@@ -491,6 +500,9 @@ describe("assets, events, and capabilities", () => {
     let idle = 0;
     const t = await setup({ "doc/a.md": "# A" }, ["doc/a.md"], { idleMs: 80, onIdle: () => idle++ });
     await until(() => idle === 1);
+    // Once idle, it stays idle: no second call while nothing reaches it.
+    await Bun.sleep(240);
+    expect(idle).toBe(1);
     const again = await setup({ "doc/a.md": "# A" }, ["doc/a.md"], { idleMs: 150, onIdle: () => idle++ });
     const pagePath = new URL(again.url("doc/a.md")).pathname;
     await waitForStream(`${again.server.base}/events?page=${encodeURIComponent(pagePath)}`, ": open", () => {});
