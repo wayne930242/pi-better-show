@@ -15,11 +15,13 @@ One package, `pi-better-show`, owns the interactive block vocabulary that agents
 | D5 | Shared rendering is framework-free custom elements fed with data, not React; React hosts wrap them thinly. | form 2 `elements: web-components` |
 | D6 | pi-better-show replaces pi-herdr-doc-review: it ships its own `show_doc` extension that opens the default browser only (no Herdr nvim or terminal-browser panes). The old package gets a last release pointing here and is archived. | form 2 `old_package: replace`; "pi herdr doc pane 顯示並不好用，或許直接都改用 pi doc blocks，這樣我本地也使用" |
 | D7 | Edit mode stays, in the user's editor (`$VISUAL`/`$EDITOR`, or VS Code): saving sends the diff back to the agent as today. | form 2 `edit_mode: editor` |
-| D8 | Agent-written TSX/HTML pages stay only locally and in straw-boss, in a sandboxed iframe; roundtable chat never runs them, text surfaces get a one-line pointer. | form 2 `tsx_pages: local-sandbox` |
+| D8 | Agent-written TSX/HTML pages (and review `page` items) run only in a sandboxed iframe; text surfaces get a one-line pointer. Superseded for roundtable by D13. | form 2 `tsx_pages: local-sandbox` |
 | D9 | Own repository `wayne930242/pi-better-show`, own version; consumers pin it exactly. | form 2 `repo: own-repo` |
 | D10 | Hosts can restyle the elements (straw-boss especially), and the elements follow light and dark schemes, fitting each host's look and use. | form 2 notes: "straw boss 要能自訂 ui，或是你要支援深色或是淺色，符合美觀和使用情境" |
 | D11 | Name `pi-better-show`: it shows more than documents. Elements take the `pbs-` prefix, custom properties `--pbs-`, bus events `better-show:`. | "改成 pi-better-show（或是類似的方向）好像比較好，他不是只有 doc"; question round `pi-better-show` |
 | D12 | Version 1 adds `checklist`, `table` (sortable, filterable), `steps` (steps or timeline), and `stats` to the vocabulary. | question round: "checklist, table（可排序篩選）, steps／timeline, stats" |
+| D13 | Roundtable supports agent pages natively in phase 3, with the long-content reader. The isolation: a sandboxed iframe with `allow-scripts` only and an opaque origin, so it reaches neither the console's DOM, storage, nor cookies. The page's response carries a strict CSP: no network (`connect-src 'none'`), no form submission, no top navigation, and scripts only from its own directory. Answers travel by postMessage, and the parent checks the source window. TSX is bundled on the server with this package's bundler. Discord gets a one-line pointer. Security-relevant, so it needs an independent review before merge. | element review: "roundtable 不能原生支援嗎？", then "支援，放第三階段" |
+| D14 | Element decisions. A Mermaid diagram with wide (CJK) labels falls back to its source plus the web pointer on text surfaces. A form, review, or checklist locks only when the host sets `answered`, while a pick or chip locks at once. A review `page` item shows only through the host's `pageUrl` hook. | element review form: `cjk_mermaid: source`, `lock: host_confirms` |
 
 ## Package layout
 
@@ -107,7 +109,7 @@ Text fields (`body`, `hint`, `note`) take restricted inline Markdown: bold, ital
 ## Security
 
 - **Hosted pages.** Elements take data only. Inline Markdown is tokenized, never parsed as HTML. Images resolve only through the host: a capability locally and in straw-boss, a `file:` id in roundtable.
-- **Agent HTML and TSX.** They run only in a sandboxed iframe, locally and in straw-boss, under the page server's CSP and allow-list.
+- **Agent HTML and TSX.** They run only in a sandboxed iframe, under the page server's CSP and allow-list. That applies locally and in straw-boss now, and in roundtable from phase 3 under D13's isolation.
 - **Roundtable** does not change its CSP.
 
 ## Work and owners
