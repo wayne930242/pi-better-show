@@ -52,6 +52,15 @@ export function tree(files: Record<string, string>): string {
   return root;
 }
 
+/** Waits until `check` holds, polling, instead of sleeping a fixed time that a loaded machine can overrun. */
+export async function until(check: () => boolean, ms = 3000): Promise<void> {
+  const end = Date.now() + ms;
+  while (!check()) {
+    if (Date.now() > end) throw new Error(`condition not met within ${ms} ms`);
+    await Bun.sleep(10);
+  }
+}
+
 export const link = (root: string, target: string, name: string): void =>
   symlinkSync(join(root, target), join(root, name));
 

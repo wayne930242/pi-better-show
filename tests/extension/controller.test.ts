@@ -10,7 +10,7 @@ import {
 } from "../../src/extension/contract.ts";
 import { createBetterShow, defaultDeps, PAGE_OPEN_WAIT_MS } from "../../src/extension/controller.ts";
 import { setup, shows } from "./fixture.ts";
-import { fakePi, http, postJson, tree, waitForStream } from "./helpers.ts";
+import { fakePi, http, postJson, tree, until, waitForStream } from "./helpers.ts";
 
 const lists = (t: ReturnType<typeof setup>) =>
   t.on(DOCUMENTS_EVENT) as { version: number; documents: Record<string, unknown>[] }[];
@@ -289,7 +289,7 @@ describe("event bus contract version 2", () => {
     const pages = setup({ files: { "a.md": "# A" }, idleMs: 60 });
     await pages.show.show(pages.root, ["a.md"], "r", "page");
     expect(lists(pages).at(-1)?.documents[0]).toMatchObject({ onScreen: true, capability: expect.any(String) });
-    await Bun.sleep(200);
+    await until(() => pages.show.server === undefined);
     const gone = lists(pages).at(-1)?.documents[0];
     expect(gone).toMatchObject({ id: "doc-1", onScreen: false });
     expect(gone?.capability).toBeUndefined();
@@ -303,10 +303,10 @@ describe("event bus contract version 2", () => {
       capability: expect.any(String),
     });
 
-    const both = setup({ files: { "a.md": "# A", "n.txt": "t" }, idleMs: 60, installed: ["code"] });
+    const both = setup({ files: { "a.md": "# A", "n.txt": "t" }, idleMs: 300, installed: ["code"] });
     await both.show.show(both.root, ["a.md"], "r", "page");
     await both.show.show(both.root, ["n.txt"], "r", "edit");
-    await Bun.sleep(200);
+    await until(() => lists(both).at(-1)?.documents[0]?.onScreen === false);
     const [page, text] = lists(both).at(-1)?.documents ?? [];
     expect(page).toMatchObject({ kind: "blocks", onScreen: false });
     expect(text).toMatchObject({ kind: "text", onScreen: true, capability: expect.any(String) });
@@ -325,10 +325,10 @@ describe("what the list publishes", () => {
   });
 
   test("a document off the screen has no capability, while another still keeps the server up", async () => {
-    const both = setup({ files: { "a.md": "# A", "n.txt": "t" }, idleMs: 60, installed: ["code"] });
+    const both = setup({ files: { "a.md": "# A", "n.txt": "t" }, idleMs: 300, installed: ["code"] });
     await both.show.show(both.root, ["a.md"], "r", "page");
     await both.show.show(both.root, ["n.txt"], "r", "edit");
-    await Bun.sleep(200);
+    await until(() => lists(both).at(-1)?.documents[0]?.onScreen === false);
     const [page, text] = lists(both).at(-1)?.documents ?? [];
     expect(page).toMatchObject({ kind: "blocks", onScreen: false });
     expect(page?.capability).toBeUndefined();
