@@ -66,7 +66,9 @@ function confine(page: string, canServe: (path: string) => boolean): Plugin {
         if (found.external) return found;
         const path = real(found.path);
         const importer = args.importer ? real(args.importer) : "";
-        const allowed = ALLOWED_BARE.test(args.path) || (importer !== "" && trusted(importer)) || mayRead(path);
+        // A name counts only where it lands: `pi-kit/../../x` resolves outside the package and is refused.
+        const allowed =
+          (ALLOWED_BARE.test(args.path) && trusted(path)) || (importer !== "" && trusted(importer)) || mayRead(path);
         if (!allowed) {
           return { errors: [{ text: `cannot import ${args.path}: a page may read only files below its own folder` }] };
         }

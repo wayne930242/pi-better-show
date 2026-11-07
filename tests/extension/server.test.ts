@@ -11,7 +11,7 @@ import {
   type PageServer,
   RAW_POLICY,
 } from "../../src/extension/server.ts";
-import { http, link, postJson, postRaw, tree, waitForStream } from "./helpers.ts";
+import { http, link, postJson, postRaw, tree, until, waitForStream } from "./helpers.ts";
 
 const servers: PageServer[] = [];
 afterEach(() => {
@@ -426,6 +426,18 @@ describe("TSX bundles read only what the page may read", () => {
     expect(three.body).not.toContain(secret);
   });
 
+  test("a name the page may import cannot climb out of its package with ..", async () => {
+    const secret = "SECRET-TOKEN-5678";
+    const dir = tree({ "auth.json": JSON.stringify({ token: secret }) });
+    for (const name of ["pi-kit", "react", "react-dom"]) {
+      const climb = `${name}/${"../".repeat(24)}${join(dir, "auth.json").slice(1)}`;
+      const out = await bundleOf({
+        "doc/c.tsx": `import s from ${JSON.stringify(climb)}; export default () => <p>{s.token}</p>;`,
+      });
+      expect(out.body, name).not.toContain(secret);
+    }
+  });
+
   test("a sibling module and a json file below the page's folder still build", async () => {
     const ok = await bundleOf({
       "doc/c.tsx":
@@ -478,13 +490,12 @@ describe("assets, events, and capabilities", () => {
   test("goes idle once the last page's stream closes, and a server nobody reaches goes idle too", async () => {
     let idle = 0;
     const t = await setup({ "doc/a.md": "# A" }, ["doc/a.md"], { idleMs: 80, onIdle: () => idle++ });
-    await Bun.sleep(200);
-    expect(idle).toBe(1);
+    await until(() => idle === 1);
     const again = await setup({ "doc/a.md": "# A" }, ["doc/a.md"], { idleMs: 150, onIdle: () => idle++ });
     const pagePath = new URL(again.url("doc/a.md")).pathname;
     await waitForStream(`${again.server.base}/events?page=${encodeURIComponent(pagePath)}`, ": open", () => {});
     // The stream closed; the wait starts again.
-    await Bun.sleep(350);
+    await until(() => idle === 2);
     expect(idle).toBe(2);
     expect(t.server.base).not.toBe(again.server.base);
   });
