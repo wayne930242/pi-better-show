@@ -50,8 +50,13 @@ describe("core is isomorphic", () => {
 describe("package", () => {
   const pkg = JSON.parse(read("package.json"));
 
-  test("exports `.` and `./server`, both TypeScript source", () => {
-    expect(pkg.exports).toEqual({ ".": "./src/core/index.ts", "./server": "./src/server/index.ts" });
+  test("exports `.`, `./elements`, `./react`, and `./server`, all TypeScript source", () => {
+    expect(pkg.exports).toEqual({
+      ".": "./src/core/index.ts",
+      "./elements": "./src/elements/index.ts",
+      "./react": "./src/react/index.ts",
+      "./server": "./src/server/index.ts",
+    });
     for (const target of Object.values(pkg.exports) as string[]) expect(read(target)).toContain("export");
   });
 
@@ -68,8 +73,27 @@ describe("package", () => {
     }
   });
 
+  test("React is an optional peer, and only the wrappers import it", () => {
+    expect(pkg.peerDependencies).toEqual({ react: ">=19" });
+    expect(pkg.peerDependenciesMeta.react.optional).toBe(true);
+    for (const dir of ["src/core", "src/server", "src/elements"]) {
+      for (const { file, text } of sources(dir)) {
+        for (const specifier of specifiers(text))
+          if (/^react/.test(specifier)) throw new Error(`${file} imports ${specifier}`);
+      }
+    }
+    for (const { file, text } of sources("src/react")) {
+      for (const specifier of specifiers(text)) {
+        const allowed =
+          specifier === "react" || specifier.startsWith("../core/") || specifier.startsWith("../elements/");
+        if (!allowed) throw new Error(`${file} imports ${specifier}`);
+      }
+    }
+  });
+
   test("source loads under node's type stripping, so a bundler-free host can import it", () => {
-    for (const entry of ["src/core/index.ts", "src/server/index.ts"]) {
+    // `./elements` and `./react` load without a DOM too (SSR): they define nothing there.
+    for (const entry of ["src/core/index.ts", "src/server/index.ts", "src/elements/index.ts"]) {
       const run = Bun.spawnSync(
         [
           "node",
