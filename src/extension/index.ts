@@ -36,8 +36,9 @@ export function install(pi: ExtensionAPI, deps: Deps = defaultDeps()): BetterSho
     return typeof path === "string" ? deps.realpath(isAbsolute(path) ? path : resolve(cwd, path)) : undefined;
   };
 
-  // A call holds back the watcher from the moment it runs until it ends, keyed by its id: a call that is blocked
-  // before it runs, or aborted, never holds anything, and the turn's end releases any that did not report an end.
+  // A call holds back the watcher from tool_execution_start until it ends, keyed by its id. pi announces a call
+  // before another extension may block it, so a blocked or aborted call can hold until the turn's end, which
+  // releases every call that did not report an end.
   pi.on("tool_execution_start", (event, ctx) => {
     if (event.toolName === "bash") show.agentWillWrite(event.toolCallId, undefined);
     else if (event.toolName === "write" || event.toolName === "edit") {

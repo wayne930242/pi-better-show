@@ -172,10 +172,13 @@ export function createEditSession(deps: EditDeps, onEdit: (message: string, disp
       if (call.path !== undefined && call.path !== path) continue;
       const content = deps.readFile(path);
       if (content === undefined) continue;
+      // Measured against what the agent last saw, so a save the watcher had not seen yet still counts, and a
+      // second shell command ending on the same change reports nothing again. The label says whether the change
+      // came while the command ran.
       const began = call.before.get(path);
-      if (call.path === undefined && began !== undefined && content !== began) {
+      if (call.path === undefined && content !== doc.snapshot) {
         try {
-          report(path, doc, began, content, true);
+          report(path, doc, doc.snapshot, content, began === undefined || content !== began);
         } catch (error) {
           doc.snapshot = content;
           doc.onError(error as Error);
