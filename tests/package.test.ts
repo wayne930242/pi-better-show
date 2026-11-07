@@ -50,18 +50,26 @@ describe("core is isomorphic", () => {
 describe("package", () => {
   const pkg = JSON.parse(read("package.json"));
 
-  test("exports `.`, `./elements`, `./react`, and `./server`, all TypeScript source", () => {
+  test("exports `.`, `./elements`, `./react`, `./server`, and `./extension`, all TypeScript source", () => {
     expect(pkg.exports).toEqual({
       ".": "./src/core/index.ts",
       "./elements": "./src/elements/index.ts",
       "./react": "./src/react/index.ts",
       "./server": "./src/server/index.ts",
+      "./extension": "./src/extension/index.ts",
     });
     for (const target of Object.values(pkg.exports) as string[]) expect(read(target)).toContain("export");
   });
 
-  test("core depends on yaml only; the server adds beautiful-mermaid", () => {
-    expect(Object.keys(pkg.dependencies).sort()).toEqual(["beautiful-mermaid", "yaml"]);
+  test("core depends on yaml only; the server adds beautiful-mermaid, the extension esbuild, markdown-it, and its own React", () => {
+    expect(Object.keys(pkg.dependencies).sort()).toEqual([
+      "beautiful-mermaid",
+      "esbuild",
+      "markdown-it",
+      "pbs-page-react",
+      "pbs-page-react-dom",
+      "yaml",
+    ]);
     for (const { file, text } of sources("src/server")) {
       for (const specifier of specifiers(text)) {
         const allowed =
@@ -74,7 +82,7 @@ describe("package", () => {
   });
 
   test("React is an optional peer, and only the wrappers import it", () => {
-    expect(pkg.peerDependencies).toEqual({ react: ">=19" });
+    expect(pkg.peerDependencies.react).toBe(">=19");
     expect(pkg.peerDependenciesMeta.react.optional).toBe(true);
     for (const dir of ["src/core", "src/server", "src/elements"]) {
       for (const { file, text } of sources(dir)) {
@@ -91,9 +99,35 @@ describe("package", () => {
     }
   });
 
+  test("the pi extension is declared, and pi's own packages are optional peers, never dependencies", () => {
+    expect(pkg.pi).toEqual({ extensions: ["./src/extension/index.ts"] });
+    expect(pkg.keywords).toContain("pi-package");
+    for (const host of ["@earendil-works/pi-coding-agent", "typebox"]) {
+      expect(pkg.peerDependencies[host]).toBe("*");
+      expect(pkg.peerDependenciesMeta[host].optional).toBe(true);
+      expect(pkg.dependencies[host]).toBeUndefined();
+    }
+  });
+
+  test("the extension is the only module that uses node, esbuild, or the page server's packages", () => {
+    for (const dir of ["src/core", "src/elements", "src/react"]) {
+      for (const { file, text } of sources(dir)) {
+        for (const specifier of specifiers(text)) {
+          if (/^(esbuild|markdown-it|node:|@earendil-works|typebox)/.test(specifier) && dir !== "src/server")
+            throw new Error(`${file} imports ${specifier}`);
+        }
+      }
+    }
+  });
+
   test("source loads under node's type stripping, so a bundler-free host can import it", () => {
     // `./elements` and `./react` load without a DOM too (SSR): they define nothing there.
-    for (const entry of ["src/core/index.ts", "src/server/index.ts", "src/elements/index.ts"]) {
+    for (const entry of [
+      "src/core/index.ts",
+      "src/server/index.ts",
+      "src/elements/index.ts",
+      "src/extension/index.ts",
+    ]) {
       const run = Bun.spawnSync(
         [
           "node",
