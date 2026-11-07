@@ -10,7 +10,7 @@ import {
   watchFile,
   writeFileSync,
 } from "node:fs";
-import { tmpdir } from "node:os";
+import { homedir, tmpdir } from "node:os";
 import { basename, dirname, isAbsolute, join, relative, resolve } from "node:path";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { encodeAnswer } from "../core/index.ts";
@@ -145,7 +145,9 @@ export function createBetterShow(pi: ExtensionAPI, deps: Deps = defaultDeps()) {
       reason: entry.reason,
       revision: entry.revision,
       onScreen: entry.onScreen,
-      ...(server ? { capability: server.capabilityOf(entry.id, entry.path), assets: server.assetsOf(entry.id) } : {}),
+      ...(server && (entry.onScreen || entry.screen === "editor")
+        ? { capability: server.capabilityOf(entry.id, entry.path), assets: server.assetsOf(entry.id) }
+        : {}),
     }));
   const publish = (): void => void pi.events.emit(DOCUMENTS_EVENT, { version: CONTRACT_VERSION, documents: listed() });
 
@@ -259,7 +261,9 @@ export function createBetterShow(pi: ExtensionAPI, deps: Deps = defaultDeps()) {
       // An answer without fields never reaches the agent.
       if (answer.fields.length === 0) return { accepted: false, reason: "empty" };
       try {
-        deliver(encodeAnswer(answer), "Your answer", true);
+        // A page the agent wrote runs its own script, so its sends are not a user's click; the agent is told which.
+        const text = encodeAnswer(answer);
+        deliver(entry?.kind === "html" ? `Agent page ${entry.display} sent:\n${text}` : text, "Your answer", true);
       } catch (error) {
         return { accepted: false, reason: `delivery failed: ${(error as Error).message}` };
       }
@@ -291,13 +295,19 @@ export function createBetterShow(pi: ExtensionAPI, deps: Deps = defaultDeps()) {
     publish();
   };
 
+  /** How a file outside the working directory is named: below the home directory by a `~` path, else by its base name, never an absolute path. */
+  const outside = (absolute: string): string => {
+    const fromHome = relative(deps.realpath(homedir()), absolute);
+    return fromHome.startsWith("..") || isAbsolute(fromHome) ? basename(absolute) : join("~", fromHome);
+  };
+
   const load = (cwd: string, path: string): Loaded => {
     if (/[\n\r]/.test(path)) throw new Error(`cannot open a path containing a line break: ${JSON.stringify(path)}`);
     const absolute = deps.realpath(isAbsolute(path) ? path : resolve(cwd, path));
     const content = deps.readFile(absolute);
     if (content === undefined) throw new Error(`cannot read ${path}`);
     const rel = relative(deps.realpath(cwd), absolute);
-    return { absolute, content, display: rel.startsWith("..") ? absolute : rel };
+    return { absolute, content, display: rel.startsWith("..") ? outside(absolute) : rel };
   };
 
   /** Opens pages in the default browser; a page whose tab the user closed opens again. */

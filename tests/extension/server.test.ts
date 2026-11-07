@@ -22,7 +22,7 @@ afterEach(() => {
 async function setup(
   files: Record<string, string>,
   shown: string[],
-  options: { idleMs?: number; onIdle?: () => void } = {},
+  options: { idleMs?: number; onIdle?: () => void; displayOf?: (path: string) => string } = {},
 ) {
   const root = tree(files);
   const allow = createAllowList();
@@ -237,6 +237,17 @@ describe("the page server's security", () => {
       await http(`${t.server.base}/files/nowhere`),
     ];
     for (const reply of replies) expect(reply.headers["content-security-policy"]).toBeTruthy();
+  });
+
+  test("the server, not the page, names the document an answer is about", async () => {
+    const t = await setup({ "doc/a.md": "# A" }, ["doc/a.md"], { displayOf: () => "doc/a.md" });
+    const page = new URL(t.url("doc/a.md")).pathname;
+    await postJson(`${t.server.base}/answer`, {
+      answerId: "1",
+      page,
+      answer: { kind: "pick", fields: [["picked", "x"]], ref: { doc: "somewhere/else.md", block: 2 } },
+    });
+    expect(t.posts[0]?.answer.ref).toEqual({ doc: "doc/a.md", block: 2 });
   });
 
   test("a body that is not an object gets a 400 and throws nothing", async () => {

@@ -235,6 +235,9 @@ export function createPageServer(options: PageServerOptions): Promise<PageServer
       }
       const pagePath = typeof parsed.page === "string" ? pathAfter(parsed.page, filesPrefix) : undefined;
       const page = pagePath ? realOrSame(pagePath) : undefined;
+      // The page names its own blocks; the server names the document, so a page cannot answer as another.
+      const shown = page && options.displayOf ? options.displayOf(page) : undefined;
+      if (shown !== undefined && answer.ref) answer.ref = { ...answer.ref, doc: shown };
       const reply = options.onAnswer({ answerId: parsed.answerId, answer, page });
       const block = answer.ref?.block;
       if (reply.accepted && page && block !== undefined && (answer.kind === "pick" || answer.kind === "suggest")) {

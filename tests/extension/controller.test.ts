@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { writeFileSync } from "node:fs";
+import { join } from "node:path";
 import {
   ANSWER_EVENT,
   ANSWER_RESULT_EVENT,
@@ -9,7 +10,7 @@ import {
 } from "../../src/extension/contract.ts";
 import { createBetterShow, defaultDeps, PAGE_OPEN_WAIT_MS } from "../../src/extension/controller.ts";
 import { setup, shows } from "./fixture.ts";
-import { fakePi, http, postJson, waitForStream } from "./helpers.ts";
+import { fakePi, http, postJson, tree, waitForStream } from "./helpers.ts";
 
 const lists = (t: ReturnType<typeof setup>) =>
   t.on(DOCUMENTS_EVENT) as { version: number; documents: Record<string, unknown>[] }[];
@@ -140,6 +141,18 @@ describe("answers from the page", () => {
     await post(t, { answerId: "2", page: pagePath(t), answer: answerOf([["a", "b"]]) });
     expect(t.sent[1]?.options).toEqual({ deliverAs: "steer" });
     expect(t.sent[1]?.message.content).toBe("User submitted a form in the HTML review pane:\n- a: b");
+  });
+
+  test("an answer from an agent's HTML page is labeled as the page's, and a Markdown page's answer is not", async () => {
+    const t = setup({ files: { "a.md": "# A", "p.html": "<p>hi</p>" } });
+    await t.show.show(t.root, ["a.md", "p.html"], "r", "page");
+    const pathOf = (index: number) => new URL(t.opened[index] as string).pathname;
+    const base = (t.opened[0] as string).replace(/\/files\/.*$/, "");
+    const answer = { kind: "pick", title: "Store", fields: [["picked", "One"]], ref: { doc: "a.md", block: 0 } };
+    await postJson(`${base}/answer`, { answerId: "m", page: pathOf(0), answer });
+    await postJson(`${base}/answer`, { answerId: "h", page: pathOf(1), answer });
+    expect(t.sent[0]?.message.content).toBe('User picked "One" for "Store".');
+    expect(t.sent[1]?.message.content).toBe('Agent page p.html sent:\nUser picked "One" for "Store".');
   });
 
   test("a repeated answer id is delivered once and gets its first result", async () => {
@@ -298,6 +311,29 @@ describe("event bus contract version 2", () => {
     expect(page).toMatchObject({ kind: "blocks", onScreen: false });
     expect(text).toMatchObject({ kind: "text", onScreen: true, capability: expect.any(String) });
     expect(both.show.server).toBeDefined();
+  });
+});
+
+describe("what the list publishes", () => {
+  test("a file outside the working directory is named by its base name, not its path", async () => {
+    const t = setup({ files: { "a.md": "# A" } });
+    const other = tree({ "outside.md": "# O" });
+    await t.show.show(t.root, [join(other, "outside.md")], "r", "page");
+    const doc = lists(t).at(-1)?.documents[0];
+    expect(doc?.display).toBe("outside.md");
+    expect(JSON.stringify(lists(t))).not.toContain(other);
+  });
+
+  test("a document off the screen has no capability, while another still keeps the server up", async () => {
+    const both = setup({ files: { "a.md": "# A", "n.txt": "t" }, idleMs: 60, installed: ["code"] });
+    await both.show.show(both.root, ["a.md"], "r", "page");
+    await both.show.show(both.root, ["n.txt"], "r", "edit");
+    await Bun.sleep(200);
+    const [page, text] = lists(both).at(-1)?.documents ?? [];
+    expect(page).toMatchObject({ kind: "blocks", onScreen: false });
+    expect(page?.capability).toBeUndefined();
+    expect(page?.assets).toBeUndefined();
+    expect(text?.capability).toEqual(expect.any(String));
   });
 });
 
