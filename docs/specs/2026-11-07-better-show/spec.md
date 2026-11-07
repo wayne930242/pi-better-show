@@ -60,8 +60,9 @@ Text fields (`body`, `hint`, `note`) take restricted inline Markdown: bold, ital
 
 ## Elements
 
-- Unit 2 (`./elements`, `./react`) ships the thirteen block elements below; `pbs-doc` is deferred to unit 3 (the extension), which needs it for local pages, and has no part in this release.
-- One element per block: `pbs-callout`, `pbs-cards`, `pbs-options`, `pbs-form`, `pbs-review`, `pbs-mindmap`, `pbs-suggest`, `pbs-checklist`, `pbs-table`, `pbs-steps`, `pbs-stats`, `pbs-diff`, `pbs-diagram`, plus `pbs-doc` that renders a whole document (prose through core's Markdown, for the local page and hosts without a renderer of their own).
+- Unit 2 (`./elements`, `./react`) ships the thirteen block elements below.
+- One element per block: `pbs-callout`, `pbs-cards`, `pbs-options`, `pbs-form`, `pbs-review`, `pbs-mindmap`, `pbs-suggest`, `pbs-checklist`, `pbs-table`, `pbs-steps`, `pbs-stats`, `pbs-diff`, `pbs-diagram`.
+- **No `pbs-doc` (unit 3 decision).** The local page server renders the document: prose through markdown-it with `html: false`, each block as its element with `data-json`. The elements stay data-in and event-out, and a host with its own Markdown renderer (roundtable, straw-boss) needs no whole-document element.
 - Data in, events out: a host sets the `data` property (the block's parsed data) or a `data-json` attribute; the element never reads HTML. On submit it dispatches `pbs-answer` (bubbles, composed) with an `Answer`; the host delivers it and sets `answered` (the submitted fields) to lock the element and show what was sent, including after a reload.
 - Unit 2 decisions on answers: a pick or chip locks itself once a listener takes the event (`pbs-answer` is cancelable, and setting `answered`, even to `undefined`, clears the local lock); a form, review, or checklist stays editable until the host sets `answered`, as pi-herdr-doc-review's did. Review items resolve `image` and `page` only through `configure({imageUrl, pageUrl})`; `page` shows in a frame with `sandbox="allow-scripts"` and never without a host hook.
 - `pbs-diagram` shows an image URL the host supplies through `configure({diagramUrl(source, scheme)})`; hosts serve the SVG from `./server`, so no diagram markup enters the page.
@@ -80,7 +81,7 @@ Text fields (`body`, `hint`, `note`) take restricted inline Markdown: bold, ital
 
 - **Local (`./extension`)**
   - **`show_doc`.** Keeps `show_doc`'s parameters. `view: "page"` opens the default browser on a loopback page server with a random path token. It keeps the current file allow-list and CSP, plus live reload over SSE.
-  - **Pages.** `.md` renders through `pbs-doc`. `.html`, `.tsx`, and `.jsx` pages (D8) render in a sandboxed iframe.
+  - **Pages.** `.md` renders on the page server (see the unit 3 notes). `.html`, `.tsx`, and `.jsx` pages (D8) render in a sandboxed iframe.
   - **Edit mode.** `view: "edit"` opens the user's editor (D7). Saving sends the zero-context diff, steered or next-turn, as today.
   - **Answers and passage comments.** Both reach the agent through `encodeAnswer`: steered while the agent is busy, starting a turn when it is idle.
   - **Mini SDD.** The auto-open of a Mini SDD folder carries over.
@@ -104,7 +105,22 @@ Text fields (`body`, `hint`, `note`) take restricted inline Markdown: bold, ital
   - `kind` is `"blocks" | "html" | "text"`.
   - `blocks` documents are fetched as Markdown text by capability and rendered by the viewer.
   - `better-show:answer` carries an `Answer` instead of bare fields, and keeps `answerId` idempotency.
+- **Document entry.** `{id, kind, display, reason, revision, onScreen, capability?, assets?}`. There is no `path`. `capability` and `assets` are present while the page server runs (see the unit 3 notes).
+- **Answer.** `better-show:answer` is `{version: 2, id, answerId, answer: Answer}`; `better-show:answer-result` is `{version: 2, id, answerId, accepted, reason?}` with `reason` one of `closed` (no such document), `invalid` (wrong version or shape, or a `text` document), `empty` (no fields), or a delivery error. A repeated `answerId` gets its first result back and delivers nothing again; the same `answerId` for another `id` is `invalid`.
 - **v1.** pi-straw-boss keeps its v1 listener until pi-herdr-doc-review is archived, then drops it.
+
+## Unit 3 notes: the extension (`./extension`)
+
+Decisions taken while building it, so the other hosts can rely on them.
+
+- **Rendering.** The page server turns a `.md` page into HTML with core's `parse`: Markdown segments through markdown-it (`html: false`, so raw HTML stays text; links open in a new tab with `rel="noopener noreferrer"`), blocks as `<pbs-*>` elements with `data-json`, `doc` (the document's display name) and `block` (its index), invalid blocks as a `pbs-callout` plus their escaped source. The page loads one same-origin script (the elements, `configure`, the answer wiring, and the feedback panel), so its CSP has no inline script or style.
+- **URLs.** Every URL sits under a random per-server token; the token is the capability. A page is `<base>/files/<abs path>`; relative images, review images, and links resolve against it, through `configure({imageUrl, pageUrl, diagramUrl})`, and only to files the allow-list admits (below a shown page's directory, never a dotfile, checked on real paths). Diagrams are `<base>/diagram.svg?scheme=&source=`, drawn by `mermaidSvg` (sources over 6000 characters show as source).
+- **Answers.** The page posts `{answerId, answer, page}` to `<base>/answer` (1 MB cap); the server hands it to the extension, which validates it, encodes it with `encodeAnswer`, and delivers it: steered while the agent is busy, starting a turn when idle. A pick or chip that was sent shows as sent after a reload; a form, review, or checklist reloads empty (the page keeps no drafts, except the feedback panel's, which sit in session storage).
+- **Sandboxed pages (D8).** `.html`, `.tsx`, and `.jsx` open in a host page whose iframe has `sandbox="allow-scripts allow-forms"` (no `allow-same-origin`); the framed responses also carry a CSP `sandbox` directive, `default-src 'self' data: blob:`, and `form-action 'none'`. The frame cannot reach the server, so a hook the server injects (`piBetterShow.send(fields | answer)`, and any `<form action="cgi-bin:pi-answer">`) asks the host page by `postMessage`, which trusts only its own frame (`event.source`, origin `"null"`). TSX is bundled by esbuild as a classic script with this package's React (`pi-kit` exposes the React wrappers, `parse`, `encodeAnswer`, and `send`). HTML pages have no feedback panel.
+- **Edit mode (D7).** The editor is `PI_BETTER_SHOW_EDITOR` (a command line, split like a shell without expansion), else `code`, else `open -t` (macOS) or `xdg-open`; it must be a command that returns at once. The extension watches the file (`watchFile`, 500 ms). A change that arrives while the agent runs a `write` or `edit` on that file, or any `bash`, is the agent's and only resyncs the snapshot, so a user's save in the same instant is not reported.
+- **Capability for other viewers.** While the page server runs, each listed document has `capability` = `<base>/doc/<id>/<basename>` (Markdown text for `blocks` and `text`, the page as a frame loads it for `html`) and `assets` = `<base>/doc/<id>/`, against which its relative references resolve; no filesystem path leaves the extension. Documents of `kind: "text"` keep the server alive; once the last tab of the browser pages closes (30 s), their entries go `onScreen: false` and lose the capability, and the server stops unless a `text` document is listed. A viewer that renders a `html` document runs it in a sandboxed frame and answers with `better-show:answer`.
+- **Mini SDD.** A proposed spec's phase files open as pages in the browser (not the editor), only when pi has a UI; `PI_BETTER_SHOW_AUTO_OPEN=off` stops it.
+- **Dropped from pi-herdr-doc-review:** Herdr panes, nvim and vim, Chawan and terminal-browser, the `pi-*` page kit tags (`<pi-form>` and the rest: write `form` blocks or the `pbs-*` elements), `window.piDocReview`, `markdown-it` raw HTML in pages, and drafts kept across a reload for forms and reviews.
 
 ## Security
 

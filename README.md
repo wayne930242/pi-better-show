@@ -2,13 +2,14 @@
 
 Interactive blocks for agent-written Markdown. An agent writes fenced blocks (`` ```form ``, `` ```table ``, ...); this package owns what they mean, so every host (a local pi session, a GUI, a chat bridge) shares one block vocabulary, one text fallback for surfaces that cannot draw blocks, and one encoding for the answers users send back.
 
-Status: 0.1.0, core, server, elements, and React wrappers. The pi extension follows in a later unit. Design: `docs/specs/2026-11-07-better-show/spec.md`.
+Status: 0.1.0, core, server, elements, React wrappers, and the `show_doc` pi extension. Design: `docs/specs/2026-11-07-better-show/spec.md`.
 
 ```
 pi-better-show          core: isomorphic, no DOM, no node APIs; depends on `yaml` only
 pi-better-show/elements browser: framework-free custom elements, one per block kind (no yaml, no node APIs)
 pi-better-show/react    thin React wrappers over the elements (React is an optional peer)
 pi-better-show/server   node: Mermaid to SVG and to Unicode text (beautiful-mermaid)
+pi-better-show/extension  the pi extension: `show_doc`, a loopback page server, edit mode, event-bus contract v2
 ```
 
 The package ships TypeScript source, with no build step. Source uses erasable syntax only, so it loads under node's type stripping and in bun and bundler pipelines.
@@ -127,7 +128,7 @@ A host gives an element the block's parsed `data` and listens for `pbs-answer` (
 | `pbs-diff` | `diff` | `DiffData` | | `diff` `scroll` `line` |
 | `pbs-diagram` | `mermaid` | `MermaidData` | | `diagram` `image` `source` `note` |
 
-`TAGS` maps a block kind to its tag. `pbs-doc` (a whole document) is not part of this release: it comes with the extension.
+`TAGS` maps a block kind to its tag. There is no whole-document element: the extension renders Markdown on its page server, and other hosts use their own renderer.
 
 **Attributes and properties** (every element)
 
@@ -183,6 +184,49 @@ import { PbsBlock, PbsForm } from "pi-better-show/react";
 ```
 
 One component per element (`PbsCallout` ... `PbsDiagram`) plus `PbsBlock`, which draws a `parse` segment with the element for its kind and addresses it by its `index`. Props: `data`, `answered`, `onAnswer(answer, event)` (return `false` to refuse), `blockRef`, `density`, `scheme`, `lang`, `className`, `id`, `ref`. A parent render with equal `data` does not redraw the element or clear what the user typed. React 19 or later, as an optional peer dependency.
+
+## The pi extension: `show_doc`
+
+`pi-better-show` is a pi package: it adds `show_doc`, which shows the agent's documents in your default browser or your editor and carries what you do there back to the agent as messages. It replaces `pi-herdr-doc-review` (same tool name, no Herdr, no terminal panes).
+
+```bash
+pi uninstall npm:pi-herdr-doc-review     # same tool name: do not load both
+pi install npm:pi-better-show
+```
+
+Then `/reload` in a running session.
+
+**Tool.** `show_doc({paths, reason, view})` returns at once, without waiting for you.
+
+| View | Opens |
+|---|---|
+| `page` | The default browser (`open`, `xdg-open`), one tab per page, on a loopback page server behind a random token. `.md` renders with its blocks; `.html`, `.tsx`, `.jsx` run in a sandboxed frame; images show as they are. |
+| `edit` (default) | A text file in your editor: `PI_BETTER_SHOW_EDITOR` (a command line, for example `code -r` or `subl`), else `code`, else `open -t` / `xdg-open`. It must return at once; terminal editors do not work. |
+
+**Markdown pages.** Prose is Markdown with raw HTML left as text; every block above becomes its element. Select a passage to comment on it; the panel collects comments and an overall note and sends them in one message. A form, pick, chip, checklist, or review reaches the agent as a message: steered into a running turn, or starting a turn when the agent is idle (`encodeAnswer`). Diagrams are drawn on the server, in the page's colour scheme. Images and links resolve against the page's directory: nothing loads from above it, from a dot file or directory, or from another site. Every response carries a CSP, and the server answers only the loopback host.
+
+**Agent pages.** `.html` and `.tsx`/`.jsx` run in `<iframe sandbox="allow-scripts allow-forms">` without `allow-same-origin`: no storage, no cookies, no network to the server. A `<form action="cgi-bin:pi-answer">` or `piBetterShow.send(fields)` answers through the page around the frame. A TSX page's default export is a React component, built by esbuild on each load with the React this package ships; `import {PbsBlock, PbsForm, ..., parse, encodeAnswer, send} from "pi-kit"` gives it the wrappers.
+
+**Edit mode.** Your editor opens the file and the extension watches it. When you save, the change since the version the agent last saw goes to it as a zero-context diff (`@@` headers carry line numbers): steered into a running turn, or attached to your next message when idle, so a save never starts a turn. A save in the same instant as the agent's own write is not reported.
+
+**Live reload and closing.** When the agent edits a shown document (`write`, `edit`, or `bash`), open tabs reload. When you close the last tab, the server stops after 30 seconds, and the next `show_doc` starts a new one and opens its pages again; showing a page whose tab you closed opens it again.
+
+**Mini SDD.** When the agent writes a `docs/specs/<slug>/spec.md` whose header says `Status: proposed`, the folder's `decision.md`, `spec.md`, `design.md`, and `verification.md` open as pages on their own (only when pi has a UI); a phase file written later joins. `PI_BETTER_SHOW_AUTO_OPEN=off` stops it.
+
+**Event bus, contract version 2.** Other viewers (the pi-straw-boss GUI) read the same documents through `pi.events`; every payload carries `version: 2`.
+
+| Event | Payload |
+|---|---|
+| `better-show:documents` | `{version, documents}` in full on every change (a document shown, changed by the agent or saved by you, a page closed) and `[]` when the session ends. Each entry is `{id, kind: "blocks" \| "html" \| "text", display, reason, revision, onScreen, capability?, assets?}`. There is no path. While the page server runs, `capability` is the URL that serves the document (Markdown text for `blocks` and `text`; the page as a frame loads it, to be shown in an iframe with `sandbox="allow-scripts allow-forms"`, for `html`) and `assets` the directory URL its relative references resolve against. The list keeps the 32 most recent documents. |
+| `better-show:documents-request` | `{version}` asks for the list again; it is sent once on `better-show:documents`. Another `version`, or a request after the session ended, is ignored. |
+| `better-show:answer` | `{version, id, answerId, answer}` with `answer` an `Answer`. It reaches the agent as the same message a page answer produces. |
+| `better-show:answer-result` | `{version, id, answerId, accepted, reason?}`; `reason` is `closed`, `invalid` (wrong version or shape, or a `text` document), `empty`, or a delivery error. A repeated `answerId` gets its first result back and delivers nothing again. A payload without a string `id` and `answerId` gets no reply. |
+
+A viewer that shows an `html` document in a frame receives its answers as `postMessage({source: "pbs-frame", type: "answer", answerId, answer})` from the frame (origin `"null"`) and replies `{source: "pbs-host", type: "answer-result", answerId, accepted, reason?}`.
+
+**Moving from pi-herdr-doc-review.** Uninstall it and install this package; `show_doc` keeps its name and parameters. Gone: Herdr panes, nvim and vim, Chawan and terminal-browser, and the `<pi-*>` page-kit tags (write `form`, `review`, ... blocks instead, or use the `pbs-*` elements). The event names changed from `doc-review:*` (version 1) to `better-show:*` (version 2).
+
+Try it without pi: `bun run show` starts the page server on `examples/` with a fake pi that prints each message the agent would receive.
 
 ## Development
 
