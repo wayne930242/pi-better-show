@@ -167,6 +167,7 @@ Serve diagram images from `pi-better-show/server` (`mermaidSvg(source, { scheme,
 | `--pbs-note` `--pbs-ok` `--pbs-warn` `--pbs-risk` | Tones |
 | `--pbs-radius` `--pbs-gap` | Corner radius; space between blocks and inside them |
 | `--pbs-font` `--pbs-mono` `--pbs-font-size` | Type |
+| `--pbs-font-display` | Titles and headings (defaults to `--pbs-font`) |
 
 Structure carries `part` names for `::part()` restyling. A panel has the same border on all four sides, or none; a tone shows as a tint, a badge, an icon, and the heading colour, never a coloured or thicker one-sided border. `examples/demo.css` maps the Roundtable and Straw boss tokens as examples.
 

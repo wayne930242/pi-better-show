@@ -160,6 +160,12 @@ describe("the sources keep the elements' promises", () => {
     }
   });
 
+  test("titles take --pbs-font-display, which falls back to the body font", () => {
+    const styles = sources.find(({ file }) => file.endsWith("styles.ts"))?.code ?? "";
+    expect(styles).toContain("--_font-display: var(--pbs-font-display, var(--_font));");
+    expect(styles).toMatch(/\.heading,\s*\.title\s*\{[^}]*font-family:\s*var\(--_font-display\)/);
+  });
+
   test("no source file passes 500 lines", () => {
     for (const { file, code } of sources) expect(code.split("\n").length, file).toBeLessThanOrEqual(500);
   });

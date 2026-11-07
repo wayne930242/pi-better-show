@@ -26,6 +26,7 @@ export const baseCss = `
   --_risk: var(--pbs-risk, light-dark(#cf222e, #f85149));
   --_radius: var(--pbs-radius, 8px);
   --_font: var(--pbs-font, ui-sans-serif, system-ui, -apple-system, "Segoe UI", "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", sans-serif);
+  --_font-display: var(--pbs-font-display, var(--_font));
   --_mono: var(--pbs-mono, ui-monospace, "SF Mono", Menlo, Consolas, monospace);
   --_gap: var(--pbs-gap, 1rem);
   --_fs: var(--pbs-font-size, 15px);
@@ -83,6 +84,7 @@ legend { padding: 0; }
 }
 .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr)); gap: var(--_gap); }
 .heading { font-weight: 650; }
+.heading, .title { font-family: var(--_font-display); }
 .heading .badge { margin-left: 0.5em; }
 .panel > .heading { margin-bottom: 0.4em; }
 
