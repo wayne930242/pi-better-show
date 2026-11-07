@@ -1,5 +1,4 @@
 import { describe, expect, test } from "bun:test";
-import { writeFileSync } from "node:fs";
 import { BLOCK_KINDS } from "../../src/core/types.ts";
 import { AUTO_OPEN_ENV } from "../../src/extension/index.ts";
 import { DESCRIPTION } from "../../src/extension/tool.ts";

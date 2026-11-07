@@ -218,7 +218,10 @@ export function createPageServer(options: PageServerOptions): Promise<PageServer
 
   const postAnswer = (request: IncomingMessage, response: ServerResponse): void => {
     const type = (request.headers["content-type"] ?? "").split(";")[0]?.trim().toLowerCase();
-    if (!fromHostPage(request) || type !== "application/json") return finish(response, 403);
+    if (!fromHostPage(request) || type !== "application/json") {
+      finish(response, 403);
+      return;
+    }
     body(request, response, (text) => {
       let parsed: { answerId?: unknown; answer?: unknown; page?: unknown };
       try {
