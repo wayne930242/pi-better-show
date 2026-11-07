@@ -447,6 +447,20 @@ describe("TSX bundles read only what the page may read", () => {
     expect(out.body).not.toContain('"esbuild"');
   });
 
+  test("a page in a project that has its own copy of the page React still builds with the trusted one", async () => {
+    const decoy = 'module.exports = "DECOY-REACT";';
+    const out = await bundleOf({
+      "node_modules/pbs-page-react/package.json": '{"name":"pbs-page-react","main":"index.js"}',
+      "node_modules/pbs-page-react/index.js": decoy,
+      "node_modules/pbs-page-react-dom/package.json": '{"name":"pbs-page-react-dom","main":"index.js"}',
+      "node_modules/pbs-page-react-dom/index.js": decoy,
+      "doc/c.tsx": "export default () => <p>PAGE-OK</p>;",
+    });
+    expect(out.body).not.toContain("This page could not be built");
+    expect(out.body).not.toContain("DECOY-REACT");
+    expect(out.body).toContain("PAGE-OK");
+  });
+
   test("a sibling module and a json file below the page's folder still build", async () => {
     const ok = await bundleOf({
       "doc/c.tsx":

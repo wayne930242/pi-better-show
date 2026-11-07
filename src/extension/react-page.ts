@@ -20,6 +20,7 @@ const PI_KIT = fileURLToPath(new URL("./client/kit.tsx", import.meta.url));
 /** A package's folder, found from the package that depends on it. */
 const packageDir = (name: string, from = import.meta.url): string =>
   realpathSync(dirname(createRequire(from).resolve(`${name}/package.json`)));
+const REACT = packageDir("pbs-page-react");
 const REACT_DOM = packageDir("pbs-page-react-dom");
 /**
  * The package's own sources and the React it ships: what a page imports by name, and what those import in turn.
@@ -29,7 +30,7 @@ const REACT_DOM = packageDir("pbs-page-react-dom");
 const PACKAGE_SRC = realpathSync(fileURLToPath(new URL("..", import.meta.url)));
 const TRUSTED_ROOTS = [
   PACKAGE_SRC,
-  packageDir("pbs-page-react"),
+  REACT,
   REACT_DOM,
   packageDir("yaml"),
   packageDir("scheduler", `${REACT_DOM}/package.json`),
@@ -158,8 +159,10 @@ export async function bundleReactPage(path: string, canServe: (path: string) => 
       plugins: [confine(path, canServe)],
       alias: {
         "pi-kit": PI_KIT,
-        react: "pbs-page-react",
-        "react-dom": "pbs-page-react-dom",
+        // By path, not by name: a page's project may hold its own pbs-page-react (any project that depends on
+        // this package does), which a name would resolve to first and the confine check would refuse.
+        react: REACT,
+        "react-dom": REACT_DOM,
       },
       define: { "process.env.NODE_ENV": '"production"' },
       loader: { ".css": "empty" },
