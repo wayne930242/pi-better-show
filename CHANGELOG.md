@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+Additive.
+
+- `tree` block: an indented directory tree (two spaces per level, the first line the root, a folder ends with `/`, optional `{new|changed|removed|focus|risk}` tags and a ` # note`, `… N more` for cut entries). Core parses it to `TreeData` (limits: 2,000 nodes, 32 levels; `TREE_TAGS`, `TREE_LIMITS`), `tree` joins `BLOCK_KINDS` and `DISPLAY_KINDS`, and `toText` draws it in `tree` style (in a fence on Discord).
+- `pbs-tree` element (and `PbsTree` in the React wrappers): ARIA tree, folders collapse and expand, tag badges, notes, entry counts, expand all and collapse all; folders deeper than 2 start closed unless something under them is tagged.
+- `pbs-tree` script, a `bin` of the package: `npx pbs-tree [dir]` prints the fence. Flags `-L -d -a -I -P --dirsfirst --filelimit --prune` follow Linux `tree`; `--gitignore` and `--changed-since <rev>` (tags from `git diff --name-status`) are additions. Plain JavaScript, node built-ins only; runs under node and bun.
+- The `show_doc` description teaches `tree` and `pbs-tree`.
+
 ## 0.3.1 - 2026-11-08
 
 Fix.
