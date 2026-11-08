@@ -39,6 +39,7 @@ describe("the show_doc tool", () => {
       "```steps",
       "```stats",
       "```tree",
+      "pbs-tree",
       'view "page"',
       'view "edit"',
       "PI_BETTER_SHOW_EDITOR",

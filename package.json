@@ -5,7 +5,11 @@
   "type": "module",
   "license": "MIT",
   "author": "wayne930242",
+  "bin": {
+    "pbs-tree": "./bin/pbs-tree.js"
+  },
   "files": [
+    "bin",
     "src",
     "README.md",
     "LICENSE"

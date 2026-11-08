@@ -5,6 +5,9 @@ const NOTE = " # ";
 const TAGS = /^(?:(.*?) )?\{([^{}]*)\}$/;
 const KNOWN = new Set<string>(TREE_TAGS);
 
+/** Trims spaces and tabs only: a no-break space at an edge belongs to a name. */
+const strip = (text: string): string => text.replace(/^[ \t]+|[ \t]+$/g, "");
+
 /** The tags written between braces: names separated by commas or spaces, each once, all known. */
 function tagsOf(list: string, line: number): TreeTag[] {
   const tags: TreeTag[] = [];
@@ -18,12 +21,12 @@ function tagsOf(list: string, line: number): TreeTag[] {
 /** One line's content (indentation already removed): `name[/] [{tags}] [# note]`. */
 function nodeOf(content: string, line: number): TreeNode {
   const cut = content.indexOf(NOTE);
-  const head = (cut < 0 ? content : content.slice(0, cut)).trimEnd();
-  const note = cut < 0 ? "" : content.slice(cut + NOTE.length).trim();
+  const head = strip(cut < 0 ? content : content.slice(0, cut));
+  const note = cut < 0 ? "" : strip(content.slice(cut + NOTE.length));
   const tagged = TAGS.exec(head);
   const text = tagged ? (tagged[1] ?? "") : head;
   const dir = text.endsWith("/");
-  const name = (dir ? text.slice(0, -1) : text).trim();
+  const name = strip(dir ? text.slice(0, -1) : text);
   if (name === "") throw new Error(`line ${line}: a line has no name`);
   // Tags are read last, so a bad name is reported before a bad tag.
   const tags = tagged ? tagsOf(tagged[2] as string, line) : [];
@@ -47,8 +50,8 @@ export function tree(source: string): TreeData {
   let root: TreeNode | undefined;
   let count = 0;
   for (const [at, raw] of source.split("\n").entries()) {
-    const line = raw.trimEnd();
-    if (line.trim() === "") continue;
+    const line = raw.replace(/[ \t]+$/, "");
+    if (line === "") continue;
     const number = at + 1;
     const space = /^[ \t]*/.exec(line)?.[0] as string;
     if (space.includes("\t")) throw new Error(`line ${number}: indent with two spaces, not tabs`);

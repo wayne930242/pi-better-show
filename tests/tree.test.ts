@@ -91,6 +91,12 @@ describe("parse: tree", () => {
     expect(data("r/\n  f {new}x").root.children[0]).toEqual(node("f {new}x"));
   });
 
+  test("only spaces and tabs are trimmed: a no-break space at the edge of a name is kept", () => {
+    expect(data("r/\n  \u00a0lead.txt\u00a0 # n").root.children[0]).toEqual(
+      node("\u00a0lead.txt\u00a0", { note: "n" }),
+    );
+  });
+
   test("an empty folder, a folder with a note and no children", () => {
     expect(data("r/\n  empty/ # nothing yet").root.children[0]).toEqual(
       node("empty", { dir: true, note: "nothing yet" }),
