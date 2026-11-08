@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+Fix and performance.
+
+- `show_doc` no longer fails with "cannot read" when it is issued in the same assistant message as the `write` that creates its file. pi runs the calls of one message in parallel, so `show_doc` read the file before the write finished (it did not depend on an absolute or relative path). The tool is now sequential: the write finishes first.
+
 ## 0.3.1 - 2026-11-08
 
 Fix.

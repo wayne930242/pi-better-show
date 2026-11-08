@@ -47,6 +47,9 @@ export const showDocTool = (show: BetterShow) =>
     label: "Show document",
     description: DESCRIPTION,
     parameters,
+    // pi runs the calls of one assistant message in parallel; a `write` issued beside this call would not have
+    // finished when it reads the file ("cannot read"). Sequential runs the calls in order, the write first.
+    executionMode: "sequential",
     async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
       show.setContext(ctx);
       const result = await show.show(ctx.cwd, params.paths, params.reason, params.view);
