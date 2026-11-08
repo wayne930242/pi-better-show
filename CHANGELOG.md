@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.3.1 - 2026-11-08
+
 Fix.
 
 - HTML and TSX pages have the feedback panel again. The panel is mounted in the page around the sandboxed frame; the frame hook reports the user's text selection to the parent (`postMessage`, bounded, accepted only from the page's own frame), so a passage can be commented on and sent with an overall note as a `feedback` answer, as on a Markdown page. The sandbox and CSP are unchanged. The page is named by its HTML `<title>`, else the file name.
