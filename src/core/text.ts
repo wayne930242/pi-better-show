@@ -19,6 +19,7 @@ import type {
   StepsData,
   SuggestData,
   TableData,
+  TextLang,
   TextProfile,
 } from "./types.ts";
 import { displayWidth } from "./width.ts";
@@ -32,7 +33,39 @@ interface Dialect {
   markdown: boolean;
   width: number;
   mermaid: TextProfile["mermaid"];
+  say: Replies;
 }
+
+/** The reply instructions of the interactive kinds. */
+interface Replies {
+  options: string;
+  /** Followed by an example, `1: b`. */
+  form: (example: string) => string;
+  /** Followed by the pick sentence, when the review has one. */
+  review: string;
+  pick: (label: string | undefined) => string;
+  suggest: string;
+  checklist: string;
+}
+
+const REPLIES: Record<TextLang, Replies> = {
+  en: {
+    options: "Reply with a number.",
+    form: (example) => `Reply in text, one line per question, like ${example}.`,
+    review: "Reply with a comment for each item, naming the item.",
+    pick: (label) => ` Say which one you pick${label === undefined ? "" : ` (${label})`}.`,
+    suggest: "You can reply: ",
+    checklist: "Reply with the items you tick or leave unticked, naming each.",
+  },
+  "zh-TW": {
+    options: "請回覆編號。",
+    form: (example) => `請用文字回覆，每題一行，例如 ${example}。`,
+    review: "請逐項回覆意見，並寫明是哪一項。",
+    pick: (label) => `請說明你選哪一項${label === undefined ? "" : `（${label}）`}。`,
+    suggest: "可以回覆：",
+    checklist: "請回覆你勾選或不勾選的項目，逐項寫明。",
+  },
+};
 
 const oneLine = (text: string): string => text.replace(/\s+/g, " ").trim();
 const letter = (index: number): string => (index < 26 ? String.fromCharCode(97 + index) : String(index + 1));
@@ -87,7 +120,7 @@ function options(dialect: Dialect, data: OptionsData): string {
       ...option.cons.map((con) => `   − ${oneLine(field(dialect, con))}`),
     ];
   });
-  return [...lines, "", "Reply with a number."].join("\n");
+  return [...lines, "", dialect.say.options].join("\n");
 }
 
 function form(dialect: Dialect, data: FormData): string {
@@ -106,7 +139,7 @@ function form(dialect: Dialect, data: FormData): string {
   });
   const title = data.title ? [bold(dialect, field(dialect, data.title))] : [];
   const example = dialect.markdown ? "`1: b`" : "1: b";
-  return [...title, ...lines, "", `Reply in text, one line per question, like ${example}.`].join("\n");
+  return [...title, ...lines, "", dialect.say.form(example)].join("\n");
 }
 
 function review(dialect: Dialect, data: ReviewData): string {
@@ -115,9 +148,9 @@ function review(dialect: Dialect, data: ReviewData): string {
     ...(item.image ? [`   image: ${item.image}`] : []),
     ...(item.page ? [`   page: ${item.page}`] : []),
   ]);
-  const pick = data.pick === undefined ? "" : ` Say which one you pick${data.pick === true ? "" : ` (${data.pick})`}.`;
+  const pick = data.pick === undefined ? "" : dialect.say.pick(data.pick === true ? undefined : data.pick);
   const title = data.title ? [bold(dialect, field(dialect, data.title))] : [];
-  return [...title, ...lines, "", `Reply with a comment for each item, naming the item.${pick}`].join("\n");
+  return [...title, ...lines, "", `${dialect.say.review}${pick}`].join("\n");
 }
 
 function mindmap(dialect: Dialect, data: MindmapData): string {
@@ -132,7 +165,7 @@ function mindmap(dialect: Dialect, data: MindmapData): string {
 
 function suggest(dialect: Dialect, data: SuggestData): string {
   if (data.items.length === 0) return "";
-  return `You can reply: ${data.items.map((item) => field(dialect, item.label)).join(" | ")}`;
+  return `${dialect.say.suggest}${data.items.map((item) => field(dialect, item.label)).join(" | ")}`;
 }
 
 function checklist(dialect: Dialect, data: ChecklistData): string {
@@ -143,6 +176,8 @@ function checklist(dialect: Dialect, data: ChecklistData): string {
       (item) =>
         `${item.checked ? "☑" : "☐"} ${joined(dialect, field(dialect, item.label), item.note && oneLine(field(dialect, item.note)))}`,
     ),
+    "",
+    dialect.say.checklist,
   ].join("\n");
 }
 
@@ -271,6 +306,7 @@ export function toText(segments: Segment[], profile: TextProfile): string {
     markdown: profile.flavor === "discord",
     width: profile.width ?? DEFAULT_WIDTH,
     mermaid: profile.mermaid,
+    say: REPLIES[profile.lang === "zh-TW" ? "zh-TW" : "en"],
   };
   const keep = new Set<string>(profile.keep ?? []);
   return segments

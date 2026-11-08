@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
-import { BLOCK_KINDS, DISPLAY_KINDS, parse, toText } from "../src/core/index.ts";
+import { BLOCK_KINDS, DISPLAY_KINDS, INTERACTIVE_KINDS, parse, toText } from "../src/core/index.ts";
 
 /**
  * Golden texts, one per block kind. Each was read by hand against the spec ("Core API": alert to bold title plus
@@ -80,8 +80,8 @@ const GOLDEN: { name: string; markdown: string; discord: string; plain: string }
     name: "checklist",
     markdown:
       "```checklist\ntitle: 上線前\nitems:\n  - {label: 跑測試, checked: true}\n  - {label: 升版, note: semver}\n```\n",
-    discord: "**上線前**\n☑ 跑測試\n☐ 升版 — semver",
-    plain: "上線前\n☑ 跑測試\n☐ 升版 - semver",
+    discord: "**上線前**\n☑ 跑測試\n☐ 升版 — semver\n\nReply with the items you tick or leave unticked, naming each.",
+    plain: "上線前\n☑ 跑測試\n☐ 升版 - semver\n\nReply with the items you tick or leave unticked, naming each.",
   },
   {
     name: "table",
@@ -305,5 +305,41 @@ describe("raw and keep", () => {
 
   test("DISPLAY_KINDS lists the display kinds", () => {
     expect(DISPLAY_KINDS).toEqual(["alert", "cards", "mermaid", "mindmap", "diff", "table", "steps", "stats"]);
+  });
+});
+
+describe("INTERACTIVE_KINDS", () => {
+  test("lists the five answerable kinds, disjoint from DISPLAY_KINDS", () => {
+    expect([...INTERACTIVE_KINDS]).toEqual(["options", "suggest", "form", "checklist", "review"]);
+    expect(INTERACTIVE_KINDS.filter((kind) => (DISPLAY_KINDS as readonly string[]).includes(kind))).toEqual([]);
+  });
+});
+
+describe("toText: lang", () => {
+  const doc = parse(
+    [
+      "```options\n- title: A\n- title: B\n```",
+      "```form\nquestions:\n  - {name: q, choices: [x, y]}\n```",
+      "```review\npick: true\nitems:\n  - {name: A}\n```",
+      "```suggest\n- 好\n```",
+      "```checklist\nitems:\n  - {label: 一}\n```",
+    ].join("\n\n"),
+  );
+
+  test("en is the default, and an unknown lang falls back to it", () => {
+    const en = toText(doc, { flavor: "plain" });
+    expect(toText(doc, { flavor: "plain", lang: "en" })).toBe(en);
+    expect(toText(doc, { flavor: "plain", lang: "fr" as never })).toBe(en);
+  });
+
+  test("zh-TW writes every reply instruction in Traditional Chinese", () => {
+    const zh = toText(doc, { flavor: "plain", lang: "zh-TW" });
+    expect(zh).toContain("請回覆編號。");
+    expect(zh).toContain("請用文字回覆，每題一行，例如 1: b。");
+    expect(zh).toContain("請逐項回覆意見，並寫明是哪一項。請說明你選哪一項。");
+    expect(zh).toContain("可以回覆：好");
+    expect(zh).toContain("請回覆你勾選或不勾選的項目，逐項寫明。");
+    expect(zh).not.toContain("Reply");
+    expect(zh).not.toContain("You can reply");
   });
 });

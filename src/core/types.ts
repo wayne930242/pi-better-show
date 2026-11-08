@@ -233,7 +233,14 @@ export interface TextProfile {
   mermaid?: (source: string, width: number) => string | undefined;
   /** Kinds whose blocks (valid or invalid) are emitted as their `raw` text, for a surface that draws them itself. */
   keep?: readonly BlockKind[];
+  /** Language of the reply instructions: `en` (default) or `zh-TW`; anything else is `en`. */
+  lang?: TextLang;
 }
+
+export type TextLang = "en" | "zh-TW";
 
 /** The kinds a display surface (a chat UI that draws blocks itself) typically keeps through `toText`. */
 export const DISPLAY_KINDS = ["alert", "cards", "mermaid", "mindmap", "diff", "table", "steps", "stats"] as const;
+
+/** The kinds a reader answers; a surface that cannot draw them gets their reply instructions from `toText`. */
+export const INTERACTIVE_KINDS = ["options", "suggest", "form", "checklist", "review"] as const;
