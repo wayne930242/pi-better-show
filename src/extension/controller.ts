@@ -181,21 +181,32 @@ export function createBetterShow(pi: ExtensionAPI, deps: Deps = defaultDeps()) {
   const pathOfDoc = (id: string): string | undefined => [...docs.values()].find((entry) => entry.id === id)?.path;
   const displayOf = (path: string): string => docs.get(path)?.display ?? basename(path);
 
+  /** The server being started; two first uses at once share it, so only one server listens. */
+  let starting: Promise<PageServer> | undefined;
   const ensureServer = async (): Promise<PageServer> => {
-    server ??= await deps.servePages({
-      canServe: allow.canServe,
-      pathOfDoc,
-      displayOf,
-      onAnswer: ({ answerId, answer, page }) => {
-        const entry = page ? docs.get(page) : undefined;
-        const result = decide(entry?.id, answerId, answer, true);
-        return result.reason === undefined
-          ? { accepted: result.accepted }
-          : { accepted: result.accepted, reason: result.reason };
-      },
-      onIdle,
-    });
-    return server;
+    if (server) return server;
+    starting ??= deps
+      .servePages({
+        canServe: allow.canServe,
+        pathOfDoc,
+        displayOf,
+        onAnswer: ({ answerId, answer, page }) => {
+          const entry = page ? docs.get(page) : undefined;
+          const result = decide(entry?.id, answerId, answer, true);
+          return result.reason === undefined
+            ? { accepted: result.accepted }
+            : { accepted: result.accepted, reason: result.reason };
+        },
+        onIdle,
+      })
+      .then((started) => {
+        server = started;
+        return started;
+      })
+      .finally(() => {
+        starting = undefined;
+      });
+    return starting;
   };
 
   /** Lists documents that were just opened: new ones get an id, known ones keep theirs. */

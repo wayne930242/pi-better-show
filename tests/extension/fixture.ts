@@ -29,6 +29,7 @@ export function setup(options: Options = {}) {
   const watchers = new Map<string, () => void>();
   const installed = options.installed ?? [];
   let ids = 0;
+  const served = { count: 0 };
   const base = defaultDeps();
   const deps: Deps = {
     ...base,
@@ -46,7 +47,10 @@ export function setup(options: Options = {}) {
       return () => watchers.delete(path);
     },
     openUrl: (url) => void opened.push(url),
-    servePages: (serverOptions) => base.servePages({ ...serverOptions, idleMs: options.idleMs ?? 60_000 }),
+    servePages: (serverOptions) => {
+      served.count++;
+      return base.servePages({ ...serverOptions, idleMs: options.idleMs ?? 60_000 });
+    },
     newId: () => `doc-${++ids}`,
     now: () => state.now,
   };
@@ -62,6 +66,7 @@ export function setup(options: Options = {}) {
   return {
     root,
     show,
+    served,
     tools,
     fire,
     state,

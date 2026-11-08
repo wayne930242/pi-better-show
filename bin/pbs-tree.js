@@ -369,13 +369,17 @@ function snapshot(settings) {
 const NBSP = "\u00a0";
 /** A name as one line of the block: control characters become `?`, and what would read as markup is kept apart by a no-break space. */
 function safe(name) {
-  return [...name]
-    .map((char) => (char < " " || char === "\u007f" ? "?" : char))
-    .join("")
-    .replace(/^ +| +$/g, (spaces) => NBSP.repeat(spaces.length))
-    .replace(/ # /g, ` #${NBSP}`)
-    .replace(/(^| )(\{[^{}]*\})$/, `${NBSP}$2`)
-    .replace(/^… (\d+) more$/, `…${NBSP}$1 more`);
+  return (
+    [...name]
+      .map((char) => (char < " " || char === "\u007f" ? "?" : char))
+      .join("")
+      .replace(/^ +| +$/g, (spaces) => NBSP.repeat(spaces.length))
+      .replace(/ # /g, ` #${NBSP}`)
+      // A trailing " #" would meet the " {tags}" suffix and read as a note.
+      .replace(/ #$/, `${NBSP}#`)
+      .replace(/(^| )(\{[^{}]*\})$/, `${NBSP}$2`)
+      .replace(/^… (\d+) more$/, `…${NBSP}$1 more`)
+  );
 }
 
 function render(tree) {

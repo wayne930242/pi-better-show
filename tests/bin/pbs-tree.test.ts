@@ -397,6 +397,19 @@ describe("pbs-tree: --changed-since", () => {
     expect(body(run(["--changed-since", "HEAD"], root).out)).not.toContain("{");
   });
 
+  test('a tagged file whose name ends in " #" keeps its name and tag through parse', () => {
+    const root = repo();
+    populate(root, ["src/a #"]);
+    git(root, "add", "-A");
+    git(root, "commit", "-q", "-m", "hash");
+    writeFileSync(join(root, "src", "a #"), "changed");
+    const node = treeOf(run(["--changed-since", "HEAD", "src"], root).out).children.find((n) => n.tags.length > 0);
+    // The space before "#" becomes a no-break space, as for other names that would read as a note.
+    expect(node?.name).toBe("a\u00a0#");
+    expect(node?.tags).toEqual(["changed"]);
+    expect(node?.note).toBeUndefined();
+  });
+
   test("a renamed file shows as removed at the old path and new at the new one", () => {
     const root = repo();
     git(root, "mv", "src/c.ts", "src/renamed.ts");

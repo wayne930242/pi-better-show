@@ -196,3 +196,17 @@ describe("validateAnswer: other kinds", () => {
     expect(reason(block("> [!NOTE]\n> x"), { kind: "form", fields: [] })).toMatch(/alert/);
   });
 });
+
+describe("validateAnswer: answer shape", () => {
+  const block = parse("```suggest\n- yes\n- no\n```").find((s) => s.type === "block") as BlockSegment;
+  for (const [label, answer] of [
+    ["fields not an array", { kind: "suggest", fields: "yes" }],
+    ["a pair with a number", { kind: "suggest", fields: [["text", 5]] }],
+    ["a pair of one", { kind: "suggest", fields: [["text"]] }],
+    ["kind not a string", { kind: 1, fields: [] }],
+  ] as const) {
+    test(`refuses ${label}`, () => {
+      expect(validateAnswer(block, answer as unknown as Answer).ok).toBe(false);
+    });
+  }
+});

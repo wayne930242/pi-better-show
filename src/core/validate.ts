@@ -122,6 +122,16 @@ function problem(block: BlockSegment, answer: Answer): string | undefined {
  * are at most 64 fields of 1,024 characters each.
  */
 export function validateAnswer(block: BlockSegment, answer: Answer): Validation {
+  // The answer comes from outside: check its shape before reading it.
+  const shaped = answer as { kind?: unknown; fields?: unknown };
+  if (typeof shaped.kind !== "string") return fail("answer kind is not a string");
+  if (
+    !Array.isArray(shaped.fields) ||
+    !shaped.fields.every(
+      (pair) => Array.isArray(pair) && pair.length === 2 && typeof pair[0] === "string" && typeof pair[1] === "string",
+    )
+  )
+    return fail("answer fields are not pairs of strings");
   const expected = KINDS[block.kind];
   if (expected === undefined) return fail(`a ${block.kind} block takes no answer`);
   if (answer.kind !== expected) return fail(`answer kind ${quoted(answer.kind)} does not fit a ${block.kind} block`);
