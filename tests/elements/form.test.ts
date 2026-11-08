@@ -151,6 +151,43 @@ describe("pbs-form", () => {
     expect(one(el, '[part="question"]').getAttribute("aria-invalid")).toBeNull();
   });
 
+  test("a multi question sends nothing on a tick, only on Send, and then carries every chosen value", () => {
+    const got = answers();
+    const el = mount("pbs-form", form);
+    check(radios(el)[0] as HTMLInputElement);
+    check(boxes(el)[0] as HTMLInputElement);
+    check(boxes(el)[1] as HTMLInputElement);
+    expect(got.details).toEqual([]);
+    click(one(el, '[part="submit"]'));
+    got.stop();
+    expect(got.details.length).toBe(1);
+    expect(encodeAnswer(got.details[0] as never)).toContain("- extras: ttl, wal");
+  });
+
+  test("a required multi question with nothing chosen is refused at that question", () => {
+    const got = answers();
+    const el = mount("pbs-form", {
+      questions: [
+        {
+          name: "extras",
+          label: "Extras",
+          type: "multi",
+          required: true,
+          other: false,
+          choices: [{ value: "ttl", label: "TTL" }],
+        },
+      ],
+    } satisfies FormData);
+    click(one(el, '[part="submit"]'));
+    expect(got.details).toEqual([]);
+    expect(one(el, '[part="error"]').textContent).toBe("Not answered yet: Extras");
+    expect(one(el, '[part="question"]').getAttribute("aria-invalid")).toBe("true");
+    check(boxes(el)[0] as HTMLInputElement);
+    click(one(el, '[part="submit"]'));
+    got.stop();
+    expect(got.details.length).toBe(1);
+  });
+
   test("Ctrl+Enter in a text box submits; a plain Enter does not", () => {
     const got = answers();
     const el = mount("pbs-form", { ...form, questions: [form.questions[2] as FormData["questions"][number]] });
@@ -304,6 +341,17 @@ describe("pbs-review", () => {
     expect(encodeAnswer(got.details[0] as never)).toBe(
       'User reviewed "Landing page":\nPicked: A (dark)\n- A (dark): text too small\n  buttons crowded\nNo feedback on: B, C',
     );
+  });
+
+  test("picking an item and typing a comment send nothing; only Send does", () => {
+    const got = answers();
+    const el = mount("pbs-review", review);
+    check(all<HTMLInputElement>(el, 'input[type="radio"]')[1] as HTMLInputElement);
+    type(all<HTMLTextAreaElement>(el, "textarea")[0] as HTMLTextAreaElement, "hi");
+    expect(got.details).toEqual([]);
+    click(one(el, '[part="submit"]'));
+    got.stop();
+    expect(got.details.length).toBe(1);
   });
 
   test("a review with every box blank is still an answer; a title-less one is called Review", () => {

@@ -163,6 +163,16 @@ describe("pbs-checklist", () => {
     expectCspSafe(el);
   });
 
+  test("a tick sends nothing; only Send does", () => {
+    const got = answers();
+    const el = mount("pbs-checklist", checklist);
+    check(all<HTMLInputElement>(el, "input")[1] as HTMLInputElement);
+    expect(got.details).toEqual([]);
+    click(one(el, '[part="submit"]'));
+    got.stop();
+    expect(got.details.length).toBe(1);
+  });
+
   test("ticks survive a redraw (density change), and a new data object resets them", () => {
     const el = mount("pbs-checklist", checklist);
     check(all<HTMLInputElement>(el, "input")[1] as HTMLInputElement);
