@@ -2,8 +2,12 @@
 
 ## Unreleased
 
-Fix and performance.
+Additive, with a fix and a performance change.
 
+- `tree` block: an indented directory tree (two spaces per level, the first line the root, a folder ends with `/`, optional `{new|changed|removed|focus|risk}` tags and a ` # note`, `… N more` for cut entries). Core parses it to `TreeData` (limits: 2,000 nodes, 32 levels; `TREE_TAGS`, `TREE_LIMITS`), `tree` joins `BLOCK_KINDS` and `DISPLAY_KINDS`, and `toText` draws it in `tree` style (in a fence on Discord).
+- `pbs-tree` element (and `PbsTree` in the React wrappers): ARIA tree, folders collapse and expand, tag badges, notes, entry counts, expand all and collapse all; folders deeper than 2 start closed unless something under them is tagged.
+- `pbs-tree` script, a `bin` of the package: `npx pbs-tree [dir]` prints the fence. Flags `-L -d -a -I -P --dirsfirst --filelimit --prune` follow Linux `tree`; `--gitignore` and `--changed-since <rev>` (tags from `git diff --name-status`) are additions. Plain JavaScript, node built-ins only; runs under node and bun.
+- The `show_doc` description teaches `tree` and `pbs-tree`.
 - The extension loads on demand. Importing and installing it no longer loads the page server, the Markdown renderer (markdown-it), Mermaid (beautiful-mermaid), the page bundler (esbuild, React), or the YAML parser; they load on the first `show_doc` call that opens a page. An idle pi session pays for the tool registration and the bus listeners only: the import cost drops from about +72 MB RSS to about +41 MB, of which about 23 MB is Node's TypeScript loader and 11 MB is typebox, both already in a pi process. `createPageServer` exported from `./extension` now loads the server on its first call and has the same signature.
 - `show_doc` no longer fails with "cannot read" when it is issued in the same assistant message as the `write` that creates its file. pi runs the calls of one message in parallel, so `show_doc` read the file before the write finished (it did not depend on an absolute or relative path). The tool is now sequential: the write finishes first.
 

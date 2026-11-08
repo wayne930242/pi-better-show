@@ -132,7 +132,7 @@ describe("react wrappers", () => {
     const segments = parse(readFileSync(new URL("../fixtures/all-blocks.md", import.meta.url), "utf8")).filter(
       (part): part is BlockSegment => part.type === "block",
     );
-    expect(segments.length).toBe(13);
+    expect(segments.length).toBe(14);
     await render(
       createElement(
         "div",
@@ -141,7 +141,7 @@ describe("react wrappers", () => {
       ),
     );
     const drawn = [...(host.children[0]?.children ?? [])] as PbsElement[];
-    expect(drawn.length).toBe(13);
+    expect(drawn.length).toBe(14);
     for (const el of drawn) {
       expect(el.shadowRoot?.childNodes.length, el.localName).toBeGreaterThan(0);
       expect(el.shadowRoot?.querySelector('div[part="error"]'), el.localName).toBeNull();

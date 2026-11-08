@@ -33,6 +33,39 @@ A block is a fenced code block whose first word is the kind, or a GitHub alert. 
 | `table` | YAML `{columns, rows, sort, filter}` | |
 | `steps` | YAML `{items: [{title, status: done\|doing\|todo\|blocked, when, body}]}` | |
 | `stats` | YAML list of `{label, value, delta, tone, note}` | |
+| `tree` | indented lines (two spaces per level, first line the root): `name/` for a folder, then `{tags}` and ` # note` | |
+
+**The `tree` block** shows a directory tree for structure reviews:
+
+```tree
+pi-better-show/
+  src/ # one package, four entries
+    core/ {focus} # parser and text, no DOM
+      parse.ts
+      validate.ts {new} # checks answers
+    elements/ # web components
+  tests/
+  README.md {changed}
+```
+
+A folder's name ends with `/`; tags are `new`, `changed`, `removed`, `focus`, `risk` (an unknown tag makes the block invalid); the note after ` # ` takes inline Markdown; a `… N more` line stands for entries a limit cut. A tree has at most 2,000 nodes and 32 levels (the root is level 1). The block carries a snapshot, so every host draws it; `toText` writes it in `tree` style (`├──`, `└──`, tags as `[new]`, notes after ` — `), in a fence on Discord.
+
+**`pbs-tree`** prints the fence for a folder: `npx pbs-tree [dir]` or `bunx pbs-tree [dir]` (plain JavaScript on node built-ins; runs under node and bun). Output is sorted by name in byte order, so a snapshot is reproducible; symlinks are not followed. Flags follow Linux `tree` where they exist:
+
+| Flag | Meaning |
+|---|---|
+| `-L n` | depth |
+| `-d` | folders only |
+| `-a` | include dot files (default skips them; `.git` is always skipped) |
+| `-I pattern` | leave out names matching the glob (`*` `?` `[..]`); `\|` separates several; repeatable |
+| `-P pattern` | list only files matching; a folder is kept when it holds a match (even below the `-L` cut); ignored with `-d` |
+| `--gitignore` | honour `.gitignore` files, those of the folder and of the folders above it up to the repository's top |
+| `--dirsfirst` | folders before files |
+| `--filelimit n` | do not open a folder holding more than n entries; writes `… N more` in its place |
+| `--prune` | drop folders that hold nothing (what `-L` hides still counts); ignored with `-d` |
+| `--changed-since <rev>` | tag `new`, `changed`, `removed` from `git diff --name-status <rev>` against the working tree; removed files are listed though absent, untracked files are `new`, a rename is a removed and a new file |
+
+A tree over the block's limits is refused (exit 1) with the node count; narrow it with `-L`, `-I`, `--gitignore`. Names that would read as a note or tags get a no-break space, and a newline in a name becomes `?`. Exit codes: 0, 1 for a failure (not a folder, git failed, too large), 2 for a bad flag.
 
 A block whose body is not valid YAML, or does not fit its schema, becomes an `invalid` segment that keeps its source and the reason; nothing throws.
 
@@ -60,7 +93,7 @@ interface TextProfile {
 
 The interactive kinds end with a reply instruction (`options`, `form`, `review`, `suggest`, and `checklist`): "Reply with a number.", "Reply in text, one line per question, like `1: b`.", and so on. `lang: "zh-TW"` writes them in Traditional Chinese; pass the conversation's language when you know it. Block content is never translated.
 
-Every `BlockSegment` and `InvalidSegment` carries `raw`: the block's exact original text, fences (or an alert's whole `>` quote) included, byte for byte. Kinds listed in `keep` are emitted as `raw` verbatim, valid or invalid, for a surface that draws them itself; other kinds convert as usual. `DISPLAY_KINDS` (`alert`, `cards`, `mermaid`, `mindmap`, `diff`, `table`, `steps`, `stats`) is the usual `keep` list for such a surface; `INTERACTIVE_KINDS` (`options`, `suggest`, `form`, `checklist`, `review`) are the kinds a reader answers, the ones a surface that cannot draw them gets as reply instructions. Without `keep`, output is unchanged.
+Every `BlockSegment` and `InvalidSegment` carries `raw`: the block's exact original text, fences (or an alert's whole `>` quote) included, byte for byte. Kinds listed in `keep` are emitted as `raw` verbatim, valid or invalid, for a surface that draws them itself; other kinds convert as usual. `DISPLAY_KINDS` (`alert`, `cards`, `mermaid`, `mindmap`, `diff`, `table`, `steps`, `stats`, `tree`) is the usual `keep` list for such a surface; `INTERACTIVE_KINDS` (`options`, `suggest`, `form`, `checklist`, `review`) are the kinds a reader answers, the ones a surface that cannot draw them gets as reply instructions. Without `keep`, output is unchanged.
 
 Renders a document for a surface that cannot draw blocks. A diagram goes through the `mermaid` hook; when there is no hook, or it returns `undefined` or a drawing wider than `width`, the output is the Mermaid source in a code block plus a pointer to the web view. No block-kind fence is left in the output, except Discord's native `diff`.
 
@@ -141,6 +174,7 @@ A host gives an element the block's parsed `data` and listens for `pbs-answer` (
 | `pbs-stats` | `stats` | `StatsData` | | `grid` `stat` `label` `value` `delta` `note` |
 | `pbs-diff` | `diff` | `DiffData` | | `diff` `scroll` `line` |
 | `pbs-diagram` | `mermaid` | `MermaidData` | | `diagram` `image` `source` `note` |
+| `pbs-tree` | `tree` | `TreeData` | | `treeview` `bar` `expand-all` `collapse-all` `tree` `item` `node` `toggle` `name` `count` `tags` `tag` `note` `more` `group` |
 
 `TAGS` maps a block kind to its tag. There is no whole-document element: the extension renders Markdown on its page server, and other hosts use their own renderer.
 
@@ -186,7 +220,7 @@ Serve diagram images from `pi-better-show/server` (`mermaidSvg(source, { scheme,
 
 Structure carries `part` names for `::part()` restyling. A panel has the same border on all four sides, or none; a tone shows as a tint, a badge, an icon, and the heading colour, never a coloured or thicker one-sided border. `examples/demo.css` maps the Roundtable and Straw boss tokens as examples.
 
-**Keyboard.** Every control is a native control, labelled. `pbs-mindmap` follows the ARIA tree pattern (arrows move, Right and Left open and close, Enter and Space toggle, Home and End jump); `pbs-table` sorts from header buttons (`aria-sort`) and filters from a labelled search box.
+**Keyboard.** Every control is a native control, labelled. `pbs-mindmap` follows the ARIA tree pattern (arrows move, Right and Left open and close, Enter and Space toggle, Home and End jump); `pbs-tree` follows it too, and opens folders to depth 2 (deeper folders that hold a tagged node open their path) with "expand all" and "collapse all" buttons; `pbs-table` sorts from header buttons (`aria-sort`) and filters from a labelled search box.
 
 ## React
 
@@ -197,7 +231,7 @@ import { PbsBlock, PbsForm } from "pi-better-show/react";
 <PbsForm data={formData} answered={fields} density="compact" onAnswer={...} />
 ```
 
-One component per element (`PbsCallout` ... `PbsDiagram`) plus `PbsBlock`, which draws a `parse` segment with the element for its kind and addresses it by its `index`. Props: `data`, `answered`, `onAnswer(answer, event)` (return `false` to refuse), `blockRef`, `density`, `scheme`, `lang`, `className`, `id`, `ref`. A parent render with equal `data` does not redraw the element or clear what the user typed. React 19 or later, as an optional peer dependency.
+One component per element (`PbsCallout` ... `PbsTree`) plus `PbsBlock`, which draws a `parse` segment with the element for its kind and addresses it by its `index`. Props: `data`, `answered`, `onAnswer(answer, event)` (return `false` to refuse), `blockRef`, `density`, `scheme`, `lang`, `className`, `id`, `ref`. A parent render with equal `data` does not redraw the element or clear what the user typed. React 19 or later, as an optional peer dependency.
 
 ## The pi extension: `show_doc`
 

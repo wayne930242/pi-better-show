@@ -11,6 +11,7 @@ import { defineForm } from "./form.ts";
 import { defineMindmap } from "./mindmap.ts";
 import { defineReview } from "./review.ts";
 import { defineTable } from "./table.ts";
+import { defineTree } from "./tree.ts";
 
 export type { AnsweredFields, BlockRef, Density } from "./base.ts";
 export { PbsElement } from "./base.ts";
@@ -23,6 +24,7 @@ export { PbsMindmap } from "./mindmap.ts";
 export { PbsReview } from "./review.ts";
 export type { Locale, Strings } from "./strings.ts";
 export { PbsTable } from "./table.ts";
+export { PbsTree } from "./tree.ts";
 
 /** The tag of every element, by the block kind it draws. `alert` is drawn by `pbs-callout`, `mermaid` by `pbs-diagram`. */
 export const TAGS = {
@@ -39,6 +41,7 @@ export const TAGS = {
   stats: "pbs-stats",
   diff: "pbs-diff",
   mermaid: "pbs-diagram",
+  tree: "pbs-tree",
 } as const;
 
 /** Defines every element that is not defined yet. Importing the module already calls it. */
@@ -49,6 +52,7 @@ export function defineAll(): void {
   defineReview();
   defineMindmap();
   defineTable();
+  defineTree();
 }
 
 defineAll();

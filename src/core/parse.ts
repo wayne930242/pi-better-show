@@ -1,6 +1,7 @@
 import { parse as parseYaml } from "yaml";
 import * as legacy from "./blocks.ts";
 import * as added from "./blocks-new.ts";
+import { tree } from "./tree.ts";
 import {
   type AlertData,
   type AlertTone,
@@ -49,6 +50,7 @@ const CONVERTERS: { [K in Exclude<BlockKind, "alert">]: Convert<K> } = {
   table: yaml(added.table),
   steps: yaml(added.steps),
   stats: yaml(added.stats),
+  tree,
 };
 
 /** The first line of the error: YAML's own messages end it with a colon and append a source excerpt. */

@@ -70,6 +70,17 @@ items:
   - Verify
 ```
 
+```tree
+pi-better-show/
+  src/ # one package, four entries
+    core/ {focus} # parser and text, no DOM
+      parse.ts
+      validate.ts {new} # checks answers
+    elements/ # web components
+  tests/
+  README.md {changed}
+```
+
 ```suggest
 - Go ahead
 - {label: Not now, text: "Not now, ask me tomorrow"}

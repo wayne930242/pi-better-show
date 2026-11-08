@@ -24,6 +24,7 @@ import type {
   StepsData,
   SuggestData,
   TableData,
+  TreeData,
 } from "../core/types.ts";
 import type { AnsweredFields, BlockRef, Density, PbsElement, Scheme, TAGS } from "../elements/index.ts";
 import "../elements/index.ts";
@@ -124,6 +125,7 @@ export const PbsSteps = component<StepsData>("pbs-steps");
 export const PbsStats = component<StatsData>("pbs-stats");
 export const PbsDiff = component<DiffData>("pbs-diff");
 export const PbsDiagram = component<MermaidData>("pbs-diagram");
+export const PbsTree = component<TreeData>("pbs-tree");
 
 const BY_KIND: { [K in keyof typeof TAGS]: (props: PbsProps<BlockDataMap[K]>) => ReactElement } = {
   alert: PbsCallout,
@@ -139,6 +141,7 @@ const BY_KIND: { [K in keyof typeof TAGS]: (props: PbsProps<BlockDataMap[K]>) =>
   stats: PbsStats,
   diff: PbsDiff,
   mermaid: PbsDiagram,
+  tree: PbsTree,
 };
 
 export interface PbsBlockProps extends Omit<PbsProps<never>, "data" | "blockRef" | "ref"> {

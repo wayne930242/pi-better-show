@@ -39,6 +39,11 @@ export interface Strings {
   diff: string;
   table: string;
   mindmap: string;
+  tree: string;
+  treeExpandAll: string;
+  treeCollapseAll: string;
+  /** A folder's count of entries; `{n}` is the number. */
+  treeEntries: string;
   suggestions: string;
   checklistProgress: string;
   stats: string;
@@ -86,6 +91,10 @@ export const STRINGS: Record<Locale, Strings> = {
     diff: "Diff",
     table: "Table",
     mindmap: "Mind map",
+    tree: "Directory tree",
+    treeExpandAll: "Expand all",
+    treeCollapseAll: "Collapse all",
+    treeEntries: "entries: {n}",
     suggestions: "Suggested replies",
     checklistProgress: "{done} of {total} done",
     stats: "Metrics",
@@ -131,6 +140,10 @@ export const STRINGS: Record<Locale, Strings> = {
     diff: "差異",
     table: "表格",
     mindmap: "心智圖",
+    tree: "目錄樹",
+    treeExpandAll: "全部展開",
+    treeCollapseAll: "全部收合",
+    treeEntries: "{n} 項",
     suggestions: "建議回覆",
     checklistProgress: "已完成 {done} / {total}",
     stats: "指標",

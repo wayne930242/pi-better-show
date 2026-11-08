@@ -14,6 +14,7 @@ export const BLOCK_KINDS = [
   "table",
   "steps",
   "stats",
+  "tree",
 ] as const;
 export type BlockKind = (typeof BLOCK_KINDS)[number];
 
@@ -166,6 +167,27 @@ export interface StatsData {
   items: StatItem[];
 }
 
+/** What a tree line can be marked with; the host draws each in its tone. */
+export const TREE_TAGS = ["new", "changed", "removed", "focus", "risk"] as const;
+export type TreeTag = (typeof TREE_TAGS)[number];
+/** A tree beyond these is invalid: nodes counts every line, depth counts the root as level 1. */
+export const TREE_LIMITS = { nodes: 2000, depth: 32 } as const;
+
+export interface TreeNode {
+  /** The file or folder name, without the folder's trailing `/` and without tags or note. Plain text. */
+  name: string;
+  dir: boolean;
+  tags: TreeTag[];
+  /** Restricted inline Markdown. */
+  note?: string;
+  children: TreeNode[];
+  /** On a `… N more` line: the number of entries a limit cut. */
+  more?: number;
+}
+export interface TreeData {
+  root: TreeNode;
+}
+
 export interface BlockDataMap {
   alert: AlertData;
   mermaid: MermaidData;
@@ -180,6 +202,7 @@ export interface BlockDataMap {
   table: TableData;
   steps: StepsData;
   stats: StatsData;
+  tree: TreeData;
 }
 
 export interface MarkdownSegment {
@@ -240,7 +263,17 @@ export interface TextProfile {
 export type TextLang = "en" | "zh-TW";
 
 /** The kinds a display surface (a chat UI that draws blocks itself) typically keeps through `toText`. */
-export const DISPLAY_KINDS = ["alert", "cards", "mermaid", "mindmap", "diff", "table", "steps", "stats"] as const;
+export const DISPLAY_KINDS = [
+  "alert",
+  "cards",
+  "mermaid",
+  "mindmap",
+  "diff",
+  "table",
+  "steps",
+  "stats",
+  "tree",
+] as const;
 
 /** The kinds a reader answers; a surface that cannot draw them gets their reply instructions from `toText`. */
 export const INTERACTIVE_KINDS = ["options", "suggest", "form", "checklist", "review"] as const;

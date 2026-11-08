@@ -95,4 +95,11 @@ items:
 - {label: Errors, value: 3, note: last hour}
 ```
 
+```tree
+app/
+  src/ # sources
+    main.ts {changed}
+  README.md {new}
+```
+
 Closing line.
