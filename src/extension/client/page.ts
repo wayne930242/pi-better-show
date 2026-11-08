@@ -1,7 +1,7 @@
 import type { Answer } from "../../core/types.ts";
 import "../../elements/index.ts";
 import { mountFeedback, wordsFor } from "./feedback.ts";
-import { type AnswerReply, configureElements, newAnswerId, serverPrefix } from "./host-config.ts";
+import { type AnswerReply, configureElements, newAnswerId, postAnswerToServer, serverPrefix } from "./host-config.ts";
 
 /**
  * The script of a rendered Markdown page: wires the elements to the page server (diagrams, images, answers),
@@ -11,17 +11,8 @@ import { type AnswerReply, configureElements, newAnswerId, serverPrefix } from "
 const prefix = serverPrefix();
 configureElements(prefix);
 
-async function postAnswer(answer: Answer): Promise<AnswerReply> {
-  const response = await fetch(`${prefix}/answer`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ answerId: newAnswerId(), answer, page: location.pathname }),
-  });
-  const reply = (await response
-    .json()
-    .catch(() => ({ accepted: false, reason: `HTTP ${response.status}` }))) as AnswerReply;
-  return reply;
-}
+const postAnswer = (answer: Answer): Promise<AnswerReply> =>
+  postAnswerToServer(`${prefix}/answer`, { answerId: newAnswerId(), answer, page: location.pathname });
 
 const toast = (text: string): void => {
   const box = document.createElement("div");

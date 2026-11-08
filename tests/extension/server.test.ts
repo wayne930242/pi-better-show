@@ -352,6 +352,21 @@ describe("agent HTML and TSX pages", () => {
     }
   });
 
+  test("the host page is named by the HTML title, else the file name", async () => {
+    const t = await setup(
+      {
+        "doc/p.html": "<!doctype html><title>Q &amp; A <b>plan</b></title><p>x",
+        "doc/bare.html": "<p>no title</p>",
+        "doc/c.tsx": "export default () => null",
+      },
+      ["doc/p.html", "doc/bare.html", "doc/c.tsx"],
+    );
+    const title = async (name: string) => /<title>([^<]*)<\/title>/.exec((await http(t.url(`doc/${name}`))).body)?.[1];
+    expect(await title("p.html")).toBe("Q &amp; A &lt;b&gt;plan&lt;/b&gt;");
+    expect(await title("bare.html")).toBe("bare.html");
+    expect(await title("c.tsx")).toBe("c.tsx");
+  });
+
   test("the frame gets the answer hook ahead of the page's own scripts", async () => {
     const t = await setup(
       {

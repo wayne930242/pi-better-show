@@ -100,6 +100,22 @@ const finish = (response: ServerResponse, status: number) => {
 const titleOf = (markdown: string, fallback: string): string =>
   /^#\s+(.+?)\s*#*\s*$/m.exec(markdown)?.[1]?.replace(/[*_`]/g, "") ?? fallback;
 
+const HTML_ENTITIES: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " " };
+
+/** The `<title>` of an HTML page, as the text it shows, else the fallback. */
+export function htmlTitleOf(html: string, fallback: string): string {
+  const raw = /<title[^>]*>([\s\S]*?)<\/title\s*>/i.exec(html)?.[1];
+  const text = raw
+    ?.replace(/&#(\d+);|&#x([\da-f]+);|&(\w+);/gi, (whole, dec?: string, hex?: string, name?: string) => {
+      const code = dec ? Number(dec) : hex ? Number.parseInt(hex, 16) : undefined;
+      if (code === undefined) return HTML_ENTITIES[(name ?? "").toLowerCase()] ?? whole;
+      return code > 0 && code <= 0x10ffff ? String.fromCodePoint(code) : whole;
+    })
+    .replace(/\s+/g, " ")
+    .trim();
+  return text || fallback;
+}
+
 export function createPageServer(options: PageServerOptions): Promise<PageServer> {
   const idleMs = options.idleMs ?? PAGE_IDLE_MS;
   const prefix = `/${randomUUID()}`;
@@ -365,9 +381,11 @@ export function createPageServer(options: PageServerOptions): Promise<PageServer
     }
     if (HTML_FILE.test(path) || REACT_FILE.test(path)) {
       const frame = `${framePrefix}${url.pathname.slice(filesPrefix.length)}`;
+      const source = content.toString("utf8");
       const html = pageShell({
-        title: basename(path),
-        lang: langOf(content.toString("utf8")),
+        // The panel on this page names the document by it, as the page's own title would.
+        title: HTML_FILE.test(path) ? htmlTitleOf(source, basename(path)) : basename(path),
+        lang: langOf(source),
         prefix,
         body: `<iframe class="pbs-frame" title="${escapeHtml(basename(path))}" src="${escapeHtml(frame)}" sandbox="allow-scripts allow-forms"></iframe>`,
         scripts: ["host.js"],

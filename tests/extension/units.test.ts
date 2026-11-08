@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { encodeAnswer } from "../../src/core/index.ts";
-import { frameAnswer } from "../../src/extension/client/bridge.ts";
+import { frameAnswer, frameSelection, MAX_SELECTION } from "../../src/extension/client/bridge.ts";
 import { feedbackAnswer, mountFeedback, wordsFor } from "../../src/extension/client/feedback.ts";
 import { parseAnswer } from "../../src/extension/contract.ts";
 import { feedbackMessage, MAX_DIFF_CHARS, shellWords } from "../../src/extension/edit.ts";
@@ -129,6 +129,48 @@ describe("the host page's bridge", () => {
     ]) {
       expect(frameAnswer({ source: frame, origin: "null", data }, frame)).toBeUndefined();
     }
+  });
+});
+
+describe("the host page's selection bridge", () => {
+  const frame = {};
+  const message = { source: "pbs-frame", type: "selection", text: "the cache", top: 12, left: 30 };
+  test("takes a selection only from its own frame, with the opaque origin", () => {
+    expect(frameSelection({ source: frame, origin: "null", data: message }, frame)).toEqual({
+      text: "the cache",
+      top: 12,
+      left: 30,
+    });
+    expect(frameSelection({ source: {}, origin: "null", data: message }, frame)).toBeUndefined();
+    expect(frameSelection({ source: frame, origin: "https://evil.example", data: message }, frame)).toBeUndefined();
+    expect(frameSelection({ source: null, origin: "null", data: message }, null)).toBeUndefined();
+  });
+
+  test("ignores a message that is not a selection, and drops a position that is not a number", () => {
+    for (const data of [
+      null,
+      "x",
+      {},
+      { ...message, source: "other" },
+      { ...message, type: "answer" },
+      { ...message, text: 3 },
+    ]) {
+      expect(frameSelection({ source: frame, origin: "null", data }, frame)).toBeUndefined();
+    }
+    expect(
+      frameSelection({ source: frame, origin: "null", data: { ...message, top: "x", left: Number.NaN } }, frame),
+    ).toEqual({
+      text: "the cache",
+    });
+  });
+
+  test("an empty text is a selection that was cleared, and a long one is cut", () => {
+    expect(frameSelection({ source: frame, origin: "null", data: { ...message, text: "" } }, frame)?.text).toBe("");
+    const long = frameSelection(
+      { source: frame, origin: "null", data: { ...message, text: "y".repeat(MAX_SELECTION + 5) } },
+      frame,
+    );
+    expect(long?.text).toHaveLength(MAX_SELECTION);
   });
 });
 

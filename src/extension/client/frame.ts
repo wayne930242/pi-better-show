@@ -1,10 +1,13 @@
 import type { Answer } from "../../core/types.ts";
+import { MAX_SELECTION } from "./bridge.ts";
 import { newAnswerId } from "./host-config.ts";
 
 /**
  * Injected into every HTML page that runs in the sandboxed frame. A form whose action is `cgi-bin:pi-answer`
  * sends its fields to the agent, and `piBetterShow.send(fields | answer)` does the same for a page's own script.
- * Both go through the parent page (see host.ts), which is the only party that talks to the server.
+ * Both go through the parent page (see host-page.ts), which is the only party that talks to the server.
+ * The text the user selects is reported to the parent too, for its feedback panel: the frame cannot show the panel
+ * itself, and the parent cannot read the frame.
  */
 
 const ACTION = "cgi-bin:pi-answer";
@@ -95,3 +98,26 @@ document.addEventListener(
   },
   true,
 );
+
+/** The text the user has selected on the page, with where it starts; none when it is empty or inside a field. */
+function selectedText(): { text: string; top: number; left: number } {
+  const none = { text: "", top: 0, left: 0 };
+  const selection = getSelection();
+  if (!selection || selection.isCollapsed || selection.rangeCount === 0) return none;
+  const active = document.activeElement;
+  if (active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement) return none;
+  const text = selection.toString().trim().slice(0, MAX_SELECTION);
+  if (!text) return none;
+  const rect = selection.getRangeAt(0).getBoundingClientRect();
+  return { text, top: rect.top, left: rect.left };
+}
+
+let reported = "";
+document.addEventListener("selectionchange", () => {
+  const { text, top, left } = selectedText();
+  // The parent already has what it is told; only a change is worth a message.
+  const key = text === "" ? "" : `${top}:${left}:${text}`;
+  if (key === reported) return;
+  reported = key;
+  parent.postMessage({ source: "pbs-frame", type: "selection", text, top, left }, "*");
+});

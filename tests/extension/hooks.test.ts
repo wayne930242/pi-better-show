@@ -48,6 +48,7 @@ describe("the show_doc tool", () => {
     ]) {
       expect(DESCRIPTION).toContain(word);
     }
+    expect(DESCRIPTION).toMatch(/Markdown, HTML, and TSX page has a feedback panel/);
     for (const kind of BLOCK_KINDS)
       expect(DESCRIPTION.toLowerCase()).toContain(kind === "alert" ? "alert" : `\`\`\`${kind}`);
     expect(DESCRIPTION).not.toMatch(/herdr|nvim|chawan|terminal-browser/i);

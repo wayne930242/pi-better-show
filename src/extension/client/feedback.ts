@@ -66,6 +66,18 @@ export interface FeedbackOptions {
   storageKey: string;
   /** Delivers the answer; rejects with the reason it was not taken. */
   send: (answer: Answer) => Promise<void>;
+  /**
+   * Whether the panel follows the selection in its own document (default). A host page around a frame turns this off
+   * and passes the frame's selection to `offer` instead.
+   */
+  watchDocument?: boolean;
+}
+
+/** A passage to comment on, and where the Add button goes (viewport coordinates of the panel's document). */
+export interface Offered {
+  text: string;
+  top?: number;
+  left?: number;
 }
 
 const make = <K extends keyof HTMLElementTagNameMap>(
@@ -83,7 +95,11 @@ const make = <K extends keyof HTMLElementTagNameMap>(
  * The feedback panel: select a passage, comment on it, and send the comments with an overall note in one message.
  * Drafts live in the tab's session storage, so they survive the reload an agent's edit causes.
  */
-export function mountFeedback(options: FeedbackOptions): { destroy: () => void } {
+export function mountFeedback(options: FeedbackOptions): {
+  /** Offers a passage to comment on, or withdraws the offer with no text or `undefined`. */
+  offer: (passage: Offered | undefined) => void;
+  destroy: () => void;
+} {
   const { words, storage, storageKey } = options;
   let items: FeedbackItem[] = [];
   let overall = "";
@@ -151,25 +167,29 @@ export function mountFeedback(options: FeedbackOptions): { destroy: () => void }
   });
 
   let pending = "";
-  const selected = (): { text: string; rect: DOMRect } | undefined => {
+  const offer = (passage: Offered | undefined): void => {
+    const text = passage?.text.trim();
+    if (!passage || !text) {
+      pending = "";
+      add.hidden = true;
+      return;
+    }
+    pending = text;
+    add.hidden = false;
+    add.style.top = `${Math.max(8, (passage.top ?? 44) - 36)}px`;
+    add.style.left = `${Math.max(8, Math.min(passage.left ?? 8, innerWidth - 120))}px`;
+  };
+  const selected = (): Offered | undefined => {
     const selection = getSelection();
     if (!selection || selection.isCollapsed || selection.rangeCount === 0) return undefined;
     const anchor = selection.anchorNode instanceof Element ? selection.anchorNode : selection.anchorNode?.parentElement;
     if (anchor?.closest(".pbs-fb, input, textarea")) return undefined;
     const text = selection.toString().trim();
-    return text ? { text, rect: selection.getRangeAt(0).getBoundingClientRect() } : undefined;
+    if (!text) return undefined;
+    const rect = selection.getRangeAt(0).getBoundingClientRect();
+    return { text, top: rect.top, left: rect.left };
   };
-  const onSelect = (): void => {
-    const found = selected();
-    if (!found) {
-      add.hidden = true;
-      return;
-    }
-    pending = found.text;
-    add.hidden = false;
-    add.style.top = `${Math.max(8, found.rect.top - 36)}px`;
-    add.style.left = `${Math.max(8, Math.min(found.rect.left, innerWidth - 120))}px`;
-  };
+  const onSelect = (): void => offer(selected());
   // The button is pressed before the click lands, which would collapse the selection; keep what was picked.
   add.addEventListener("mousedown", (event) => event.preventDefault());
   add.addEventListener("click", () => {
@@ -211,12 +231,14 @@ export function mountFeedback(options: FeedbackOptions): { destroy: () => void }
         sendButton.disabled = false;
       });
   });
-  document.addEventListener("selectionchange", onSelect);
+  const watch = options.watchDocument !== false;
+  if (watch) document.addEventListener("selectionchange", onSelect);
   draw();
   document.body.append(root);
   return {
+    offer,
     destroy: () => {
-      document.removeEventListener("selectionchange", onSelect);
+      if (watch) document.removeEventListener("selectionchange", onSelect);
       root.remove();
     },
   };

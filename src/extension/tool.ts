@@ -20,7 +20,7 @@ export const DESCRIPTION =
   "```steps holds {items: [{title, status: done|doing|todo|blocked, when, body}]}, a steps or timeline view; " +
   "```stats holds a YAML list of {label, value, delta, tone, note} shown as metric tiles. body fields are Markdown. " +
   "Images and links resolve against the page's directory; nothing loads from above it or from another site. " +
-  "Every Markdown page has a feedback panel: the user comments on selected passages and sends them to you as a message. " +
+  "Every Markdown, HTML, and TSX page has a feedback panel: the user comments on selected passages and sends them to you as a message. " +
   "Put decisions that belong to the page (several questions, or a choice after a comparison) in a ```form at its end; ask a single short question with your question tool. " +
   'An .html page runs as written under a sandbox (scripts and forms, no storage, nothing from other sites): a <form action="cgi-bin:pi-answer"> sends its fields to you when submitted, and piBetterShow.send(fields) does the same from a script. ' +
   'When a page needs interaction (inputs that recompute, tabs, filters), write a .tsx or .jsx file and open it with view "page": React is built in, and the "pi-kit" module exports PbsBlock, PbsForm, PbsOptions, PbsReview, PbsChecklist, PbsTable, PbsCallout, PbsCards, PbsMindmap, PbsSuggest, PbsSteps, PbsStats, PbsDiff, PbsDiagram (props data, onAnswer; PbsBlock draws a parsed block), parse, encodeAnswer, and send(answer or fields) to hand you any values as a message. Import sibling modules freely; import no CSS. ' +

@@ -1,3 +1,4 @@
+import type { Answer } from "../../core/types.ts";
 import { configure } from "../../elements/index.ts";
 
 /** The page server's path prefix (`/<token>`): the first segment of every page it serves. */
@@ -43,6 +44,25 @@ export interface AnswerReply {
   accepted: boolean;
   reason?: string;
 }
+
+export interface AnswerBody {
+  answerId: string;
+  answer: Answer;
+  /** The path of the page the answer comes from. */
+  page: string;
+}
+
+/** Delivers one answer to the page server, and tells whether it was taken. */
+export type PostAnswer = (url: string, body: AnswerBody) => Promise<AnswerReply>;
+
+export const postAnswerToServer: PostAnswer = async (url, body) => {
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  return (await response.json().catch(() => ({ accepted: false, reason: `HTTP ${response.status}` }))) as AnswerReply;
+};
 
 /** A random id for one answer, so a repeated send is delivered once. */
 export const newAnswerId = (): string =>
