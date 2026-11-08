@@ -4,6 +4,7 @@
 
 Fix and performance.
 
+- The extension loads on demand. Importing and installing it no longer loads the page server, the Markdown renderer (markdown-it), Mermaid (beautiful-mermaid), the page bundler (esbuild, React), or the YAML parser; they load on the first `show_doc` call that opens a page. An idle pi session pays for the tool registration and the bus listeners only: the import cost drops from about +72 MB RSS to about +41 MB, of which about 23 MB is Node's TypeScript loader and 11 MB is typebox, both already in a pi process. `createPageServer` exported from `./extension` now loads the server on its first call and has the same signature.
 - `show_doc` no longer fails with "cannot read" when it is issued in the same assistant message as the `write` that creates its file. pi runs the calls of one message in parallel, so `show_doc` read the file before the write finished (it did not depend on an absolute or relative path). The tool is now sequential: the write finishes first.
 
 ## 0.3.1 - 2026-11-08

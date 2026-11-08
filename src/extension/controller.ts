@@ -13,7 +13,7 @@ import {
 import { homedir, tmpdir } from "node:os";
 import { basename, dirname, isAbsolute, join, relative, resolve } from "node:path";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
-import { encodeAnswer } from "../core/index.ts";
+import { encodeAnswer } from "../core/answer.ts";
 import type { Answer } from "../core/types.ts";
 import {
   ANSWER_EVENT,
@@ -28,7 +28,7 @@ import {
 } from "./contract.ts";
 import { createEditSession, defaultLaunch, defaultRun, EDITOR_ENV, type EditDeps, WATCH_MS } from "./edit.ts";
 import { createAllowList, HTML_FILE, IMAGE_FILE, MARKDOWN_FILE, REACT_FILE } from "./files.ts";
-import { createPageServer, type PageServer, type PageServerOptions } from "./server.ts";
+import type { PageServer, PageServerOptions } from "./server.ts";
 
 export const MESSAGE_TYPE = "better-show";
 export const MINI_SDD_FILE = /(^|\/)docs\/specs\/[^/]+\/(decision|spec|design|verification)\.md$/;
@@ -58,6 +58,13 @@ export interface Deps extends EditDeps {
   newId: () => string;
   now: () => number;
 }
+
+/**
+ * Starts the page server, loading it (with the renderers, Mermaid, and the page bundler it pulls in) on the first
+ * call. An idle session that never shows a page never pays for any of it.
+ */
+export const createPageServer = async (options: PageServerOptions): Promise<PageServer> =>
+  (await import("./server.ts")).createPageServer(options);
 
 export const defaultDeps = (): Deps => ({
   editor: process.env[EDITOR_ENV],

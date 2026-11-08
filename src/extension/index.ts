@@ -18,8 +18,7 @@ import {
 import { showDocTool } from "./tool.ts";
 
 export * from "./contract.ts";
-export { createBetterShow, type Deps, defaultDeps } from "./controller.ts";
-export { createPageServer } from "./server.ts";
+export { createBetterShow, createPageServer, type Deps, defaultDeps } from "./controller.ts";
 
 /** Set to `off` to stop a proposed Mini SDD spec from opening on its own. */
 export const AUTO_OPEN_ENV = "PI_BETTER_SHOW_AUTO_OPEN";
