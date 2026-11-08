@@ -2,7 +2,9 @@
 
 ## Unreleased
 
-Additive; 0.3.0.
+## 0.3.0 - 2026-11-08
+
+Additive.
 
 - `INTERACTIVE_KINDS` (`options`, `suggest`, `form`, `checklist`, `review`), exported beside `DISPLAY_KINDS`.
 - `toText`: a `checklist` now ends with a reply instruction like the other interactive kinds.
