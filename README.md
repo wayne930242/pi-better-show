@@ -54,10 +54,13 @@ interface TextProfile {
   width?: number;                          // columns a diagram may take; default 60
   mermaid?: (source: string, width: number) => string | undefined;
   keep?: readonly BlockKind[];             // kinds emitted as their `raw` text instead of converted
+  lang?: "en" | "zh-TW";                   // language of the reply instructions; default "en", anything else is "en"
 }
 ```
 
-Every `BlockSegment` and `InvalidSegment` carries `raw`: the block's exact original text, fences (or an alert's whole `>` quote) included, byte for byte. Kinds listed in `keep` are emitted as `raw` verbatim, valid or invalid, for a surface that draws them itself; other kinds convert as usual. `DISPLAY_KINDS` (`alert`, `cards`, `mermaid`, `mindmap`, `diff`, `table`, `steps`, `stats`) is the usual `keep` list for such a surface. Without `keep`, output is unchanged.
+The interactive kinds end with a reply instruction (`options`, `form`, `review`, `suggest`, and `checklist`): "Reply with a number.", "Reply in text, one line per question, like `1: b`.", and so on. `lang: "zh-TW"` writes them in Traditional Chinese; pass the conversation's language when you know it. Block content is never translated.
+
+Every `BlockSegment` and `InvalidSegment` carries `raw`: the block's exact original text, fences (or an alert's whole `>` quote) included, byte for byte. Kinds listed in `keep` are emitted as `raw` verbatim, valid or invalid, for a surface that draws them itself; other kinds convert as usual. `DISPLAY_KINDS` (`alert`, `cards`, `mermaid`, `mindmap`, `diff`, `table`, `steps`, `stats`) is the usual `keep` list for such a surface; `INTERACTIVE_KINDS` (`options`, `suggest`, `form`, `checklist`, `review`) are the kinds a reader answers, the ones a surface that cannot draw them gets as reply instructions. Without `keep`, output is unchanged.
 
 Renders a document for a surface that cannot draw blocks. A diagram goes through the `mermaid` hook; when there is no hook, or it returns `undefined` or a drawing wider than `width`, the output is the Mermaid source in a code block plus a pointer to the web view. No block-kind fence is left in the output, except Discord's native `diff`.
 
@@ -86,6 +89,14 @@ encodeAnswer(answer: Answer): string
 | `pick` | `[["picked", option]]` | `User picked "option" for "title".` |
 | `suggest` | `[["text", text]]` | the text itself |
 | `checklist` | one `[name, "checked" \| "unchecked"]` per item | `User updated the checklist "title":` then `☑`/`☐` lines |
+
+```ts
+validateAnswer(block: BlockSegment, answer: Answer): { ok: true } | { ok: false; reason: string }
+```
+
+`validateAnswer` is for a host that receives an `Answer` from an untrusted client. It accepts the answer when its `kind` fits the block (`options` takes `pick`, the others their own kind), every field names a question, choice, or item of that block, and there are at most 64 fields of at most 1,024 characters each. Several values for one name are accepted only for a `multi` form question (as repeated fields, or the joined value the form element sends); a `single` or `text` question, a pick, and a suggestion take one. A required question must be answered (an empty value or `(no answer)` is not an answer). On a `form` question without an `other` box, a value must be one of its choices. A `checklist` field is an item name once with `checked` or `unchecked`; a `review` may carry `picked` only when the block has `pick`. On refusal `reason` says why, for the host's error reply. Blocks that take no answer (display kinds) are refused.
+
+**Several values.** A block that gathers several values (a `form` with a `multi` question, a `checklist`, a `review`) sends nothing on a tick, a pick, or typing: choices stay changeable until the reader presses Send, and a required `multi` question with none chosen is refused at that question. Only `options` and `suggest` send on the click.
 
 ## Server API
 
