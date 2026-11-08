@@ -1,3 +1,4 @@
+import { optionName } from "../core/blocks.ts";
 import { inlinePlain } from "../core/inline.ts";
 import type { ChecklistData, OptionData, OptionsData, SuggestData } from "../core/types.ts";
 import { define, PbsElement } from "./base.ts";
@@ -5,9 +6,6 @@ import { controlCss, fieldOf, sendingForm, sentBadge, submitRow } from "./contro
 import { h, inlineNodes, prose, uid } from "./dom.ts";
 
 /** The elements that answer with a pick or ticks: options, suggest, checklist. */
-
-const optionName = (option: OptionData, index: number): string =>
-  option.title ? inlinePlain(option.title) : String(index + 1);
 
 /**
  * One-shot elements (options, suggest) lock themselves once a listener takes the answer, so a double click sends

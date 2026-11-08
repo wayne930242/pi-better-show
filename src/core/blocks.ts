@@ -1,3 +1,4 @@
+import { inlinePlain } from "./inline.ts";
 import { entryOf, itemsOf, list, mappingOf, oneOf, positiveNumber, recommended, record, text } from "./normalize.ts";
 import type {
   CardsData,
@@ -111,6 +112,10 @@ export function reviewNames(names: (string | undefined)[]): string[] {
 /** An item's name with its label, as the agent reads it: `B (dark header)`. */
 export const reviewItemName = (item: { name: string; label?: string }): string =>
   item.label ? `${item.name} (${item.label})` : item.name;
+
+/** The name an option answers with: its plain title, else its 1-based number. */
+export const optionName = (option: { title?: string }, index: number): string =>
+  option.title ? inlinePlain(option.title) : String(index + 1);
 
 export function review(data: unknown): ReviewData {
   const raw = mappingOf(data);
