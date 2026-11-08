@@ -104,6 +104,12 @@ const GOLDEN: { name: string; markdown: string; discord: string; plain: string }
     plain: "使用者: 1204 (+4%)\n錯誤: 3 - 一小時內",
   },
   {
+    name: "tree",
+    markdown: "```tree\n專案/\n  src/ # 原始碼\n    main.ts {changed}\n  README.md {new} # 說明\n```\n",
+    discord: "```\n專案/\n├── src/ — 原始碼\n│   └── main.ts [changed]\n└── README.md [new] — 說明\n```",
+    plain: "  專案/\n  ├── src/ — 原始碼\n  │   └── main.ts [changed]\n  └── README.md [new] — 說明",
+  },
+  {
     name: "invalid",
     markdown: "```form\nquestions: [unclosed\n```\n",
     discord: "```\nquestions: [unclosed\n```",
@@ -304,7 +310,7 @@ describe("raw and keep", () => {
   });
 
   test("DISPLAY_KINDS lists the display kinds", () => {
-    expect(DISPLAY_KINDS).toEqual(["alert", "cards", "mermaid", "mindmap", "diff", "table", "steps", "stats"]);
+    expect(DISPLAY_KINDS).toEqual(["alert", "cards", "mermaid", "mindmap", "diff", "table", "steps", "stats", "tree"]);
   });
 });
 

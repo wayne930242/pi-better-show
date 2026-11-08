@@ -18,7 +18,7 @@ describe("shell", () => {
     const before = customElements.get("pbs-form");
     defineAll();
     expect(customElements.get("pbs-form")).toBe(before);
-    expect(Object.keys(TAGS).length).toBe(13);
+    expect(Object.keys(TAGS).length).toBe(14);
     for (const tag of Object.values(TAGS)) expect(customElements.get(tag)).toBeDefined();
   });
 

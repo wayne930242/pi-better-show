@@ -21,6 +21,8 @@ import type {
   TableData,
   TextLang,
   TextProfile,
+  TreeData,
+  TreeNode,
 } from "./types.ts";
 import { displayWidth } from "./width.ts";
 
@@ -230,6 +232,26 @@ function stats(dialect: Dialect, data: StatsData): string {
     .join("\n");
 }
 
+/** A tree in `tree` style, one line per node: tags as `[new]`, the note after ` — `. Notes lose their Markdown: the lines sit in a fence. */
+function tree(dialect: Dialect, data: TreeData): string {
+  const lines: string[] = [];
+  const label = (node: TreeNode): string => {
+    const tags = node.tags.map((tag) => `[${tag}]`);
+    const note = node.note === undefined ? "" : ` — ${oneLine(inlinePlain(node.note))}`;
+    return `${[`${node.name}${node.dir ? "/" : ""}`, ...tags].join(" ")}${note}`;
+  };
+  const walk = (node: TreeNode, prefix: string) => {
+    node.children.forEach((child, index) => {
+      const last = index === node.children.length - 1;
+      lines.push(`${prefix}${last ? "└── " : "├── "}${label(child)}`);
+      walk(child, `${prefix}${last ? "    " : "│   "}`);
+    });
+  };
+  lines.push(label(data.root));
+  walk(data.root, "");
+  return code(dialect, lines.join("\n"));
+}
+
 const widest = (text: string): number => Math.max(0, ...text.split("\n").map(displayWidth));
 
 /** A diagram as a text drawing when the hook can and it fits; else its source and a pointer to the web view. */
@@ -272,6 +294,8 @@ function block(dialect: Dialect, segment: BlockSegment): string {
       return steps(dialect, segment.data);
     case "stats":
       return stats(dialect, segment.data);
+    case "tree":
+      return tree(dialect, segment.data);
   }
 }
 
