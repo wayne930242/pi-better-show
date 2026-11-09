@@ -1,3 +1,4 @@
+import { NOTE_FIELD } from "./blocks.ts";
 import type { Answer } from "./types.ts";
 
 type Fields = readonly (readonly [string, string])[];
@@ -64,6 +65,16 @@ function checklistText(fields: Fields, title: string | undefined): string {
  */
 export function encodeAnswer(answer: Answer): string {
   const fields = answer.fields.filter(([name]) => name !== "pi-kind");
+  if (answer.kind === "feedback") return encodeKind(answer, fields);
+  const note = first(fields, NOTE_FIELD)?.trim();
+  const body = encodeKind(
+    answer,
+    fields.filter(([name]) => name !== NOTE_FIELD),
+  );
+  return note ? `${body}\n\nOther comments: ${note}` : body;
+}
+
+function encodeKind(answer: Answer, fields: Fields): string {
   switch (answer.kind) {
     case "form":
       return formText(fields);

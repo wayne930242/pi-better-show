@@ -1,4 +1,4 @@
-import { optionName, reviewItemName } from "./blocks.ts";
+import { NOTE_FIELD, optionName, reviewItemName } from "./blocks.ts";
 import type { Answer, AnswerKind, BlockSegment, FormData, QuestionData } from "./types.ts";
 
 /** `reason` says what is wrong, for a host's refusal. */
@@ -116,9 +116,20 @@ function problem(block: BlockSegment, answer: Answer): string | undefined {
   }
 }
 
+/** A form question or checklist item named like the reserved note field could not be told from the comments box. */
+function reservedName(block: BlockSegment): string | undefined {
+  const clash =
+    block.kind === "form"
+      ? block.data.questions.some((question) => question.name === NOTE_FIELD)
+      : block.kind === "checklist"
+        ? block.data.items.some((item) => item.name === NOTE_FIELD)
+        : false;
+  return clash ? `the name ${quoted(NOTE_FIELD)} is reserved for other comments` : undefined;
+}
+
 /**
  * Whether an untrusted `answer` fits `block`: its kind is the block's, every field names a question, choice, or item
- * of the block, several values appear only for a `multi` form question, required questions are answered, and there
+ * of the block, several values appear only for a `multi` form question, required questions are answered, an optional `note` field (the "Other comments" box, once) is accepted on every kind, and there
  * are at most 64 fields of 1,024 characters each.
  */
 export function validateAnswer(block: BlockSegment, answer: Answer): Validation {
@@ -138,6 +149,10 @@ export function validateAnswer(block: BlockSegment, answer: Answer): Validation 
   if (answer.fields.length > MAX_FIELDS) return fail(`more than ${MAX_FIELDS} fields`);
   if (answer.fields.some(([name, value]) => name.length > MAX_LENGTH || value.length > MAX_LENGTH))
     return fail(`a field is longer than ${MAX_LENGTH} characters`);
-  const found = problem(block, answer);
+  const notes = answer.fields.filter(([name]) => name === NOTE_FIELD);
+  if (notes.length > 1) return fail("several other comments");
+  const reserved = reservedName(block);
+  if (reserved) return fail(reserved);
+  const found = problem(block, { ...answer, fields: answer.fields.filter(([name]) => name !== NOTE_FIELD) });
   return found === undefined ? PASS : fail(found);
 }

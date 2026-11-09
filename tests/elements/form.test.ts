@@ -271,7 +271,7 @@ describe("pbs-review", () => {
     expect(one(el, '[part="items"]').getAttribute("data-columns")).toBe("2");
     expect(all(el, '[part="item-title"]').map((title) => title.textContent)).toEqual(["A (dark)", "B", "C"]);
     expect(all(el, '[part="pick"]').length).toBe(3);
-    expect(all(el, "textarea").length).toBe(3);
+    expect(all(el, '[part="comment"]').length).toBe(3);
     expectCspSafe(el);
   });
 

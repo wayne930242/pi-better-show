@@ -1,3 +1,4 @@
+import { NOTE_FIELD } from "../core/blocks.ts";
 import type { AnsweredFields } from "./base.ts";
 import { type Child, h } from "./dom.ts";
 
@@ -48,6 +49,8 @@ fieldset.question { border: 0; min-width: 0; display: flex; flex-direction: colu
 .question .req { color: var(--_risk); }
 .question .hint { color: var(--_muted); font-size: 0.9em; }
 .question[aria-invalid="true"] .label { color: var(--_risk); }
+.note-field { display: flex; flex-direction: column; gap: 0.3rem; }
+.note-field .label { font-weight: 600; }
 .sent-head { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
 `;
 
@@ -57,6 +60,24 @@ export function submitRow(label: string): { row: HTMLElement; button: HTMLButton
   const status = h("span", { part: "status", class: "status", role: "status", "aria-live": "polite" });
   return { row: h("div", { part: "actions", class: "row" }, button, status), button, status };
 }
+
+/** The fixed "Other comments" box above a submit button: its text is sent as the reserved `note` field when not blank. */
+export function noteBox(label: string, value: string, onInput: (text: string) => void): HTMLElement {
+  const box = h("textarea", {
+    part: "note",
+    class: "note-box",
+    maxlength: 1024,
+    rows: 2,
+    "aria-label": label,
+    placeholder: label,
+    value,
+  });
+  box.addEventListener("input", () => onInput(box.value));
+  return h("label", { part: "note-field", class: "note-field" }, h("span", { class: "label" }, label), box);
+}
+
+/** The reserved field for a note, or nothing when blank. */
+export const noteField = (text: string): [string, string][] => (text.trim() ? [[NOTE_FIELD, text.trim()]] : []);
 
 /** A form wrapper that submits through `onSend`, from the button, Enter in a one-line box, or Ctrl/Cmd+Enter anywhere inside. */
 export function sendingForm(onSend: () => void, props: Record<string, string>, ...children: Child[]): HTMLFormElement {

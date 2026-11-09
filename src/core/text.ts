@@ -52,20 +52,20 @@ interface Replies {
 
 const REPLIES: Record<TextLang, Replies> = {
   en: {
-    options: "Reply with a number.",
-    form: (example) => `Reply in text, one line per question, like ${example}.`,
+    options: "Reply with a number. Other comments are welcome.",
+    form: (example) => `Reply in text, one line per question, like ${example}. Other comments are welcome.`,
     review: "Reply with a comment for each item, naming the item.",
-    pick: (label) => ` Say which one you pick${label === undefined ? "" : ` (${label})`}.`,
+    pick: (label) => ` Say which one you pick${label === undefined ? "" : ` (${label})`}. Other comments are welcome.`,
     suggest: "You can reply: ",
-    checklist: "Reply with the items you tick or leave unticked, naming each.",
+    checklist: "Reply with the items you tick or leave unticked, naming each. Other comments are welcome.",
   },
   "zh-TW": {
-    options: "請回覆編號。",
-    form: (example) => `請用文字回覆，每題一行，例如 ${example}。`,
+    options: "請回覆編號。也歡迎補充其他意見。",
+    form: (example) => `請用文字回覆，每題一行，例如 ${example}。也歡迎補充其他意見。`,
     review: "請逐項回覆意見，並寫明是哪一項。",
-    pick: (label) => `請說明你選哪一項${label === undefined ? "" : `（${label}）`}。`,
+    pick: (label) => `請說明你選哪一項${label === undefined ? "" : `（${label}）`}。也歡迎補充其他意見。`,
     suggest: "可以回覆：",
-    checklist: "請回覆你勾選或不勾選的項目，逐項寫明。",
+    checklist: "請回覆你勾選或不勾選的項目，逐項寫明。也歡迎補充其他意見。",
   },
 };
 
