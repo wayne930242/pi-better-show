@@ -1,6 +1,8 @@
 # Block check
 
-Status: implemented on feat/block-check (Boss request, 2026-11-09)
+Status: proposed
+
+Requested by the boss, 2026-11-09; implemented on feat/block-check, awaiting review.
 
 ## Goal
 
