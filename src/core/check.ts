@@ -71,6 +71,7 @@ const SHAPES: Record<string, Shape> = {
   },
   review: {
     keys: ["title", "submit", "pick", "columns", "items"],
+    bare: "items",
     lists: { items: items("item", ["name", "label", "image", "page", "height", "body"], ["name", "label"]) },
   },
   suggest: { keys: ["items"], bare: "items", lists: { items: items("suggestion", ["label", "text"]) } },
@@ -91,6 +92,21 @@ const SHAPES: Record<string, Shape> = {
     lists: { items: items("stat", ["label", "value", "delta", "tone", "note"]) },
   },
 };
+
+/** Keys whose value is an enum, flag or number: a ` #` after one is a plain comment, not lost text. */
+const NON_TEXT_KEYS = new Set([
+  "status",
+  "type",
+  "align",
+  "direction",
+  "dir",
+  "checked",
+  "required",
+  "filter",
+  "height",
+  "columns",
+  "tone",
+]);
 
 const QUOTE_HINT = 'quote any value that holds " #" or ": " (and commas inside {…})';
 
@@ -149,7 +165,7 @@ function checkComment(context: Context, node: Scalar, path: string): void {
   const read = kept === "" ? "no value" : `the value ${JSON.stringify(kept)}`;
   report(
     context,
-    start,
+    end,
     path,
     `a plain value ends at " #": ${JSON.stringify(rest.trim())} is read as a YAML comment and dropped, leaving ${read}; if it is text, quote the whole value: ${quoteYaml(whole)}`,
   );
@@ -198,6 +214,7 @@ function walk(context: Context, node: Node | null, shape: Shape | undefined, own
   } else if (isMap(node)) {
     checkKeys(context, node, key === undefined ? shape : shape?.maps?.[key], path);
   } else if (isScalar(node)) {
+    if (key !== undefined && NON_TEXT_KEYS.has(key)) return;
     checkComment(context, node, path);
   }
 }

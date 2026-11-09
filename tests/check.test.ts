@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { type BlockProblem, checkBlocks, formatProblems } from "../src/core/index.ts";
+import { type BlockProblem, checkBlocks, formatProblems, parse } from "../src/core/index.ts";
 
 const block = (kind: string, body: string): string => `\`\`\`${kind}\n${body}\n\`\`\`\n`;
 /** A document with a heading and a blank line before the block, so the fence is on line 3. */
@@ -237,5 +237,52 @@ describe("formatProblems", () => {
     expect(text).toBe(
       'Block problems in q.md:\n- line 40 form: broken\n- line 50 form question "o5" choice 1 label (warning): cut',
     );
+  });
+});
+
+describe("checkBlocks: review as a bare list", () => {
+  test("a bare list is read as items, so its keys are checked", () => {
+    const found = only(checkBlocks(doc("review", "- {name: A, image: a.png, caption: x}")));
+    expect(found.message).toContain("unknown key");
+    expect(found.path).toBe('review item "A"');
+  });
+});
+
+describe("checkBlocks: the key lists match the converters", () => {
+  const full: Record<string, string> = {
+    cards: "cards:\n  - {title: T, tone: ok, body: B}",
+    options: "options:\n  - {title: T, recommended: true, body: B, pros: [p], cons: [c]}",
+    form: "title: T\nsubmit: S\nquestions:\n  - {name: q, label: L, type: single, hint: H, required: true, other: false, choices: [{value: v, label: L, note: N, recommended: true}]}",
+    review: "title: T\nsubmit: S\npick: true\ncolumns: 2\nitems:\n  - {name: A, label: L, image: a.png, page: p.html, height: 90, body: B}",
+    suggest: "items:\n  - {label: L, text: X}",
+    checklist: "title: T\nsubmit: S\nitems:\n  - {name: n, label: L, checked: true, note: N}",
+    table:
+      "columns:\n  - {name: a, label: L, type: number, align: right}\nrows:\n  - {a: 1}\nsort: {column: a, by: a, direction: desc}\nfilter: true",
+    steps: "items:\n  - {title: T, status: done, when: W, body: B}",
+    stats: "items:\n  - {label: L, value: 1, delta: D, tone: ok, note: N}",
+  };
+  test("every key the checker accepts is accepted and kept by the converter", () => {
+    for (const [kind, body] of Object.entries(full)) {
+      const text = doc(kind, body);
+      expect(checkBlocks(text)).toEqual([]);
+      const segment = parse(text).find((s) => s.type !== "markdown");
+      expect(segment?.type).toBe("block");
+      const data = JSON.stringify((segment as { data: unknown }).data);
+      for (const value of ["T", "S", "B", "L", "N", "H", "W", "D", "X", "p", "c", "a.png", "p.html", "90", "right"]) {
+        const written = new RegExp(`(^|[^\\w])${value.replace(".", "\\.")}([^\\w]|$)`).test(body);
+        if (written) expect({ kind, value, kept: data.includes(value) }).toEqual({ kind, value, kept: true });
+      }
+    }
+  });
+});
+
+describe("checkBlocks: comment checks", () => {
+  test("a comment after an enum, flag or number value is not lost text", () => {
+    expect(checkBlocks(doc("steps", "- title: a\n  status: done # shipped"))).toEqual([]);
+  });
+
+  test("a multi-line value is reported at the line of the ` #`", () => {
+    const found = only(checkBlocks(doc("cards", "- title: first\n    second #cut\n  body: b")));
+    expect(found.line).toBe(5);
   });
 });

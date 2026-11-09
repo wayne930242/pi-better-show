@@ -25,7 +25,7 @@ export async function checkText(name: string, markdown: string): Promise<string 
               mermaid(source);
               return undefined;
             } catch (error) {
-              return ((error as Error).message.split("\n")[0] as string).trim();
+              return ((error instanceof Error ? error.message : String(error)).split("\n")[0] as string).trim();
             }
           },
         }
