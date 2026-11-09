@@ -1,7 +1,8 @@
+import { NOTE_FIELD } from "../core/blocks.ts";
 import { inlinePlain } from "../core/inline.ts";
 import type { FormData, QuestionData } from "../core/types.ts";
 import { define, PbsElement } from "./base.ts";
-import { controlCss, fieldOf, sendingForm, sentBadge, submitRow } from "./controls.ts";
+import { controlCss, fieldOf, noteBox, noteField, sendingForm, sentBadge, submitRow } from "./controls.ts";
 import { type Child, h, inlineNodes, uid } from "./dom.ts";
 
 /** What the agent reads for a question left empty; kept in English whatever the element's language, as pi-herdr-doc-review did. */
@@ -32,9 +33,11 @@ function answerOf(question: QuestionData, entry: Entry): string {
 export class PbsForm extends PbsElement<FormData> {
   static override css = controlCss;
   #entries: Entry[] | undefined;
+  #note = "";
 
   protected override reset(): void {
     this.#entries = undefined;
+    this.#note = "";
   }
 
   protected view(data: FormData): Node {
@@ -79,6 +82,7 @@ export class PbsForm extends PbsElement<FormData> {
         question.name,
         answerOf(question, entries[index] as Entry) || NO_ANSWER,
       ]);
+      fields.push(...noteField(this.#note));
       if (data.title) fields.unshift(["form", inlinePlain(data.title)]);
       const delivered = this.answer({
         kind: "form",
@@ -92,6 +96,9 @@ export class PbsForm extends PbsElement<FormData> {
       { part: "form", class: "panel form-panel", ...(data.title ? { "aria-label": inlinePlain(data.title) } : {}) },
       title,
       questions,
+      noteBox(this.t("otherComments"), this.#note, (text) => {
+        this.#note = text;
+      }),
       error,
       row,
     );
@@ -225,7 +232,7 @@ export class PbsForm extends PbsElement<FormData> {
       }),
       ...sent
         .filter(([name]) => name !== "form" && !known.has(name))
-        .map(([name, value]): [string, string] => [name, value]),
+        .map(([name, value]): [string, string] => [name === NOTE_FIELD ? this.t("otherComments") : name, value]),
     ];
     return h(
       "section",

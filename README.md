@@ -127,7 +127,7 @@ interface Answer {
 encodeAnswer(answer: Answer): string
 ```
 
-`encodeAnswer` produces the text the agent reads. For `form`, `review`, and `feedback` it is byte-compatible with pi-herdr-doc-review's `formMessage`, `reviewMessage`, and `pageFeedbackMessage` given the same fields (the legacy `pi-kind` field is ignored). `ref` addresses the block for hosts and does not appear in the text.
+`encodeAnswer` produces the text the agent reads. For `form`, `review`, and `feedback` it is byte-compatible with pi-herdr-doc-review's `formMessage`, `reviewMessage`, and `pageFeedbackMessage` given the same fields (the legacy `pi-kind` field is ignored). `ref` addresses the block for hosts and does not appear in the text. A `pi-note` field (see below) is appended as `Other comments: …`.
 
 | Kind | `fields` | Text |
 |---|---|---|
@@ -143,6 +143,8 @@ validateAnswer(block: BlockSegment, answer: Answer): { ok: true } | { ok: false;
 ```
 
 `validateAnswer` is for a host that receives an `Answer` from an untrusted client. It accepts the answer when its `kind` fits the block (`options` takes `pick`, the others their own kind), every field names a question, choice, or item of that block, and there are at most 64 fields of at most 1,024 characters each. Several values for one name are accepted only for a `multi` form question (as repeated fields, or the joined value the form element sends); a `single` or `text` question, a pick, and a suggestion take one. A required question must be answered (an empty value or `(no answer)` is not an answer). On a `form` question without an `other` box, a value must be one of its choices. A `checklist` field is an item name once with `checked` or `unchecked`; a `review` may carry `picked` only when the block has `pick`. On refusal `reason` says why, for the host's error reply. Blocks that take no answer (display kinds) are refused.
+
+**Other comments.** Every submittable element (`pbs-form`, `pbs-review`, `pbs-checklist`, `pbs-options`) shows a fixed "Other comments" box above its submit button (above the options in `pbs-options`; the box is read when the option is picked). Its trimmed text travels in the same answer as the reserved field `pi-note` (`NOTE_FIELD`), once, and a blank box sends nothing. `validateAnswer` accepts it for every interactive kind; a form question or checklist item may not be named `pi-note`. A host that shows the elements needs to do nothing new: the field is in `answer.fields`, so `validateAnswer` and `encodeAnswer` already pass it through. A host that rebuilds the answer from selected fields must forward `pi-note`; set `answered` to the submitted fields so the locked element shows it. The words are `otherComments` in `configure({strings})`.
 
 **Several values.** A block that gathers several values (a `form` with a `multi` question, a `checklist`, a `review`) sends nothing on a tick, a pick, or typing: choices stay changeable until the reader presses Send, and a required `multi` question with none chosen is refused at that question. Only `options` and `suggest` send on the click.
 

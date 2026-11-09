@@ -1,9 +1,9 @@
-import { reviewItemName } from "../core/blocks.ts";
+import { NOTE_FIELD, reviewItemName } from "../core/blocks.ts";
 import { inlinePlain } from "../core/inline.ts";
 import type { ReviewData, ReviewItemData } from "../core/types.ts";
 import { type AnsweredFields, define, PbsElement } from "./base.ts";
 import { configuration } from "./config.ts";
-import { controlCss, sendingForm, sentBadge, submitRow } from "./controls.ts";
+import { controlCss, noteBox, noteField, sendingForm, sentBadge, submitRow } from "./controls.ts";
 import { type Child, h, inlineNodes, prose, uid } from "./dom.ts";
 
 const reviewCss = `${controlCss}
@@ -36,11 +36,13 @@ export class PbsReview extends PbsElement<ReviewData> {
   static override css = reviewCss;
   #picked: string | undefined;
   #comments: string[] | undefined;
+  #note = "";
   readonly #group = uid("pbs-pick");
 
   protected override reset(): void {
     this.#picked = undefined;
     this.#comments = undefined;
+    this.#note = "";
   }
 
   protected view(data: ReviewData): Node {
@@ -71,10 +73,20 @@ export class PbsReview extends PbsElement<ReviewData> {
       });
       const silent = named.filter((_, index) => !(comments[index] as string).trim());
       if (silent.length > 0) fields.push(["silent", silent.join(", ")]);
+      fields.push(...noteField(this.#note));
       if (this.answer({ kind: "review", ...(data.title ? { title: inlinePlain(data.title) } : {}), fields }))
         status.textContent = this.t("sent");
     };
-    return sendingForm(send, { part: "review", class: "panel form-panel review" }, title, grid, row);
+    return sendingForm(
+      send,
+      { part: "review", class: "panel form-panel review" },
+      title,
+      grid,
+      noteBox(this.t("otherComments"), this.#note, (text) => {
+        this.#note = text;
+      }),
+      row,
+    );
   }
 
   private item(item: ReviewItemData, index: number, pickLabel: string | undefined, comments: string[]): HTMLElement {
@@ -168,6 +180,7 @@ export class PbsReview extends PbsElement<ReviewData> {
     const comments = values("comment");
     const [picked] = values("picked");
     const [silent] = values("silent");
+    const [note] = values(NOTE_FIELD);
     const row = (label: string, value: string) => h("div", null, h("dt", null, label), h("dd", null, value));
     return h(
       "section",
@@ -179,6 +192,7 @@ export class PbsReview extends PbsElement<ReviewData> {
         picked && row(this.t("picked"), picked),
         items.map((item, index) => row(item, comments[index] ?? "")),
         silent && row(this.t("noFeedback"), silent),
+        note && row(this.t("otherComments"), note),
       ),
     );
   }

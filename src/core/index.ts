@@ -1,5 +1,5 @@
 export { encodeAnswer } from "./answer.ts";
-export { reviewItemName } from "./blocks.ts";
+export { NOTE_FIELD, reviewItemName } from "./blocks.ts";
 export { type BlockProblem, type CheckOptions, checkBlocks, formatProblems } from "./check.ts";
 export { inline, inlinePlain } from "./inline.ts";
 export { parse } from "./parse.ts";

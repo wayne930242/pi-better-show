@@ -13,6 +13,7 @@ export interface Strings {
   unanswered: string;
   other: string;
   feedbackNote: string;
+  otherComments: string;
   noFeedback: string;
   reviewFallback: string;
   enlarge: string;
@@ -65,6 +66,7 @@ export const STRINGS: Record<Locale, Strings> = {
     unanswered: "Not answered yet: ",
     other: "Other (type your own)",
     feedbackNote: "Feedback (leave blank for none)",
+    otherComments: "Other comments",
     noFeedback: "No feedback",
     reviewFallback: "Review",
     enlarge: "Enlarge",
@@ -114,6 +116,7 @@ export const STRINGS: Record<Locale, Strings> = {
     unanswered: "還沒回答：",
     other: "其他（自行填寫）",
     feedbackNote: "回饋（留白代表沒意見）",
+    otherComments: "其他意見",
     noFeedback: "沒有意見",
     reviewFallback: "回饋",
     enlarge: "放大",

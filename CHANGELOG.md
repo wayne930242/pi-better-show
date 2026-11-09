@@ -7,6 +7,13 @@
 - A `write` or `edit` of a `.md` file that holds a block fence returns the same list in the tool's own result, so the agent sees it at once. The checker, the YAML parser, and Mermaid load on first use; files without block fences cost a regular expression.
 - Mermaid is checked in the extension with `beautiful-mermaid` (diagram type and what it can draw); core takes the check as a hook and stays free of it.
 
+Minor bump. Hosts must upgrade core together with the elements: an older `validateAnswer` refuses an answer that carries a non-blank note (an unknown field), so the box would fail to send.
+
+- Every submittable block (`pbs-form`, `pbs-review`, `pbs-checklist`, and `pbs-options` on a pick, with their React wrappers) shows a fixed free-text box "Other comments" (`其他意見` in Traditional Chinese, key `otherComments` in `configure({strings})`). Its trimmed text goes out in the same answer as the reserved field `pi-note` (`NOTE_FIELD`, namespaced like `pi-kind`, exported from core); a blank box sends no field. A locked element shows the note that was sent.
+- `validateAnswer` accepts at most one `pi-note` field on every interactive kind, under the usual 1,024-character cap, and does not let it count as an answer or toward the 64-field cap. A form question or checklist item named `pi-note` does not parse (and `validateAnswer` refuses a hand-built block that has one), so the field cannot collide.
+- `encodeAnswer` appends `Other comments: <text>` after the text of any non-feedback answer that carries `pi-note`.
+- `toText` tells the reader that other comments are welcome in the reply of options, forms, reviews (with or without pick), and checklists. In `pbs-options` the box sits above the options, since a pick sends at once.
+
 ## 0.4.0 - 2026-11-08
 
 Additive, with fixes and a performance change.

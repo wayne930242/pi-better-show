@@ -1,3 +1,4 @@
+import { NOTE_FIELD } from "./blocks.ts";
 import { entryOf, flag, itemsOf, mappingOf, oneOf, record, requiredText, text } from "./normalize.ts";
 import type {
   Cell,
@@ -59,8 +60,10 @@ export function checklist(data: unknown): ChecklistData {
       const item = entryOf(entry, "label", "item");
       const label = text(item.label ?? item.name, "label");
       if (label === undefined) throw new Error("each checklist item needs a label or a name");
+      const name = text(item.name, "name") ?? label;
+      if (name === NOTE_FIELD) throw new Error('the item name "pi-note" is reserved for the other-comments box');
       return {
-        name: text(item.name, "name") ?? label,
+        name,
         label,
         checked: flag(item.checked, "checked") ?? false,
         note: text(item.note, "note"),

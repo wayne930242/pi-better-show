@@ -43,26 +43,27 @@ const GOLDEN: { name: string; markdown: string; discord: string; plain: string }
     markdown:
       '```options\n- {title: A, recommended: 最推薦, body: 說明, pros: "快; 簡單", cons: [貴]}\n- {body: no title}\n```\n',
     discord:
-      "1. **A** ★ 最推薦 — 說明\n   + 快\n   + 簡單\n   − 貴\n2. **Option 2** — no title\n\nReply with a number.",
-    plain: "1. A ★ 最推薦 - 說明\n   + 快\n   + 簡單\n   − 貴\n2. Option 2 - no title\n\nReply with a number.",
+      "1. **A** ★ 最推薦 — 說明\n   + 快\n   + 簡單\n   − 貴\n2. **Option 2** — no title\n\nReply with a number. Other comments are welcome.",
+    plain:
+      "1. A ★ 最推薦 - 說明\n   + 快\n   + 簡單\n   − 貴\n2. Option 2 - no title\n\nReply with a number. Other comments are welcome.",
   },
   {
     name: "form",
     markdown:
       "```form\ntitle: 決定\nquestions:\n  - {name: s, label: 哪個？, required: true, hint: 選一個, choices: [A, {value: b, label: B, note: 較慢, recommended: true}]}\n  - {label: 多選, type: multi, other: false, choices: [x, y]}\n  - {label: 補充}\n```\n",
     discord:
-      "**決定**\n1. **哪個？** (required)\n   選一個\n   a) A\n   b) B ★ — 較慢\n   or write your own answer\n2. **多選** (pick any)\n   a) x\n   b) y\n3. **補充**\n\nReply in text, one line per question, like `1: b`.",
+      "**決定**\n1. **哪個？** (required)\n   選一個\n   a) A\n   b) B ★ — 較慢\n   or write your own answer\n2. **多選** (pick any)\n   a) x\n   b) y\n3. **補充**\n\nReply in text, one line per question, like `1: b`. Other comments are welcome.",
     plain:
-      "決定\n1. 哪個？ (required)\n   選一個\n   a) A\n   b) B ★ - 較慢\n   or write your own answer\n2. 多選 (pick any)\n   a) x\n   b) y\n3. 補充\n\nReply in text, one line per question, like 1: b.",
+      "決定\n1. 哪個？ (required)\n   選一個\n   a) A\n   b) B ★ - 較慢\n   or write your own answer\n2. 多選 (pick any)\n   a) x\n   b) y\n3. 補充\n\nReply in text, one line per question, like 1: b. Other comments are welcome.",
   },
   {
     name: "review",
     markdown:
       '```review\ntitle: 首頁\npick: 最喜歡\nitems:\n  - {name: A, label: 深色, image: a.png, body: "**好**"}\n  - {page: proto/b.html}\n```\n',
     discord:
-      "**首頁**\n1. **A (深色)** — **好**\n   image: a.png\n2. **B**\n   page: proto/b.html\n\nReply with a comment for each item, naming the item. Say which one you pick (最喜歡).",
+      "**首頁**\n1. **A (深色)** — **好**\n   image: a.png\n2. **B**\n   page: proto/b.html\n\nReply with a comment for each item, naming the item. Say which one you pick (最喜歡). Other comments are welcome.",
     plain:
-      "首頁\n1. A (深色) - 好\n   image: a.png\n2. B\n   page: proto/b.html\n\nReply with a comment for each item, naming the item. Say which one you pick (最喜歡).",
+      "首頁\n1. A (深色) - 好\n   image: a.png\n2. B\n   page: proto/b.html\n\nReply with a comment for each item, naming the item. Say which one you pick (最喜歡). Other comments are welcome.",
   },
   {
     name: "mindmap",
@@ -80,8 +81,10 @@ const GOLDEN: { name: string; markdown: string; discord: string; plain: string }
     name: "checklist",
     markdown:
       "```checklist\ntitle: 上線前\nitems:\n  - {label: 跑測試, checked: true}\n  - {label: 升版, note: semver}\n```\n",
-    discord: "**上線前**\n☑ 跑測試\n☐ 升版 — semver\n\nReply with the items you tick or leave unticked, naming each.",
-    plain: "上線前\n☑ 跑測試\n☐ 升版 - semver\n\nReply with the items you tick or leave unticked, naming each.",
+    discord:
+      "**上線前**\n☑ 跑測試\n☐ 升版 — semver\n\nReply with the items you tick or leave unticked, naming each. Other comments are welcome.",
+    plain:
+      "上線前\n☑ 跑測試\n☐ 升版 - semver\n\nReply with the items you tick or leave unticked, naming each. Other comments are welcome.",
   },
   {
     name: "table",
@@ -340,11 +343,11 @@ describe("toText: lang", () => {
 
   test("zh-TW writes every reply instruction in Traditional Chinese", () => {
     const zh = toText(doc, { flavor: "plain", lang: "zh-TW" });
-    expect(zh).toContain("請回覆編號。");
-    expect(zh).toContain("請用文字回覆，每題一行，例如 1: b。");
-    expect(zh).toContain("請逐項回覆意見，並寫明是哪一項。請說明你選哪一項。");
+    expect(zh).toContain("請回覆編號。也歡迎補充其他意見。");
+    expect(zh).toContain("請用文字回覆，每題一行，例如 1: b。也歡迎補充其他意見。");
+    expect(zh).toContain("請逐項回覆意見，並寫明是哪一項。請說明你選哪一項。也歡迎補充其他意見。");
     expect(zh).toContain("可以回覆：好");
-    expect(zh).toContain("請回覆你勾選或不勾選的項目，逐項寫明。");
+    expect(zh).toContain("請回覆你勾選或不勾選的項目，逐項寫明。也歡迎補充其他意見。");
     expect(zh).not.toContain("Reply");
     expect(zh).not.toContain("You can reply");
   });

@@ -1,8 +1,8 @@
-import { optionName } from "../core/blocks.ts";
+import { NOTE_FIELD, optionName } from "../core/blocks.ts";
 import { inlinePlain } from "../core/inline.ts";
 import type { ChecklistData, OptionData, OptionsData, SuggestData } from "../core/types.ts";
 import { define, PbsElement } from "./base.ts";
-import { controlCss, fieldOf, sendingForm, sentBadge, submitRow } from "./controls.ts";
+import { controlCss, fieldOf, noteBox, noteField, sendingForm, sentBadge, submitRow } from "./controls.ts";
 import { h, inlineNodes, prose, uid } from "./dom.ts";
 
 /** The elements that answer with a pick or ticks: options, suggest, checklist. */
@@ -15,9 +15,11 @@ import { h, inlineNodes, prose, uid } from "./dom.ts";
 export class PbsOptions extends PbsElement<OptionsData> {
   static override css = controlCss;
   #sent: number | undefined;
+  #note = "";
 
   protected override reset(): void {
     this.#sent = undefined;
+    this.#note = "";
   }
   protected override settled(): void {
     this.#sent = undefined;
@@ -28,11 +30,12 @@ export class PbsOptions extends PbsElement<OptionsData> {
     const selected =
       this.#sent ?? (picked === undefined ? undefined : data.options.findIndex((o, i) => optionName(o, i) === picked));
     const locked = this.answered !== undefined || this.#sent !== undefined;
+    const sentNote = fieldOf(this.answered, NOTE_FIELD) ?? (this.#sent === undefined ? "" : this.#note.trim());
     const pick = (index: number) => {
       if (locked) return;
       const ok = this.answer({
         kind: "pick",
-        fields: [["picked", optionName(data.options[index] as OptionData, index)]],
+        fields: [["picked", optionName(data.options[index] as OptionData, index)], ...noteField(this.#note)],
       });
       if (!ok) return;
       this.#sent = index;
@@ -40,6 +43,15 @@ export class PbsOptions extends PbsElement<OptionsData> {
       this.focusIn("[data-selected] button");
     };
     return [
+      ...(locked
+        ? sentNote
+          ? [h("p", { part: "sent-note", class: "status" }, `${this.t("otherComments")}: ${sentNote}`)]
+          : []
+        : [
+            noteBox(this.t("otherComments"), this.#note, (text) => {
+              this.#note = text;
+            }),
+          ]),
       h(
         "div",
         { part: "grid", class: "grid", role: "list", "aria-label": this.t("options") },
@@ -153,9 +165,11 @@ export class PbsSuggest extends PbsElement<SuggestData> {
 export class PbsChecklist extends PbsElement<ChecklistData> {
   static override css = controlCss;
   #checked: boolean[] | undefined;
+  #note = "";
 
   protected override reset(): void {
     this.#checked = undefined;
+    this.#note = "";
   }
 
   protected view(data: ChecklistData): Node {
@@ -203,6 +217,7 @@ export class PbsChecklist extends PbsElement<ChecklistData> {
       },
       rows,
     );
+    const sentNote = fieldOf(locked, NOTE_FIELD);
     if (locked) {
       return h(
         "section",
@@ -210,6 +225,7 @@ export class PbsChecklist extends PbsElement<ChecklistData> {
         h("div", { class: "sent-head" }, title, sentBadge(this.t("submitted"))),
         group,
         progress,
+        sentNote && h("p", { part: "sent-note", class: "status" }, `${this.t("otherComments")}: ${sentNote}`),
       );
     }
     const { row, status } = submitRow(data.submit ? inlinePlain(data.submit) : this.t("send"));
@@ -218,10 +234,21 @@ export class PbsChecklist extends PbsElement<ChecklistData> {
         item.name,
         checked[index] ? "checked" : "unchecked",
       ]);
+      fields.push(...noteField(this.#note));
       if (this.answer({ kind: "checklist", ...(data.title ? { title: inlinePlain(data.title) } : {}), fields }))
         status.textContent = this.t("sent");
     };
-    return sendingForm(send, { part: "checklist", class: "panel form-panel" }, title, group, progress, row);
+    return sendingForm(
+      send,
+      { part: "checklist", class: "panel form-panel" },
+      title,
+      group,
+      progress,
+      noteBox(this.t("otherComments"), this.#note, (text) => {
+        this.#note = text;
+      }),
+      row,
+    );
   }
 }
 
