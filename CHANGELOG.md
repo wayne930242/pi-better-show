@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 0.5.0 - 2026-11-09
+
+Additive. Hosts upgrade core and elements together: an older `validateAnswer` refuses an answer that carries a non-blank `pi-note`.
+
 - `checkBlocks(markdown, options?)` and `formatProblems` in core: for each block, the problems an author needs to fix, with the line in the Markdown file, the key path, a message, and `error` or `warning`. Errors: every invalid block (YAML errors at the line that caused them, a flow map broken by an unquoted ` #` at the line that opened it, tree and mindmap errors at their line), a diagram the `mermaid` hook refuses. Warnings: a plain value cut short by ` #` (silently parsed as a YAML comment), an unknown key at any level the converters read (with the known keys and a near-miss suggestion), a fence that never closes. `BlockProblem` and `CheckOptions` are exported.
 - `show_doc` appends the block problems of each Markdown document it opens, page or edit view, after its usual text (`Block problems in notes.md:` then one line per problem); the text is unchanged when there are none.
 - A `write` or `edit` of a `.md` file that holds a block fence returns the same list in the tool's own result, so the agent sees it at once. The checker, the YAML parser, and Mermaid load on first use; files without block fences cost a regular expression.
