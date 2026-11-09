@@ -21,7 +21,7 @@ describe("the other-comments box", () => {
     const seen = answers();
     type(one(el, NOTE), "  one more thing ");
     click(one(el, '[part="submit"]'));
-    expect(seen.details[0]?.fields).toContainEqual(["note", "one more thing"]);
+    expect(seen.details[0]?.fields).toContainEqual(["pi-note", "one more thing"]);
     expect(encodeAnswer(seen.details[0] as never)).toContain("Other comments: one more thing");
     seen.stop();
     const zh = mount("pbs-form", form, { lang: "zh-Hant" });
@@ -32,7 +32,7 @@ describe("the other-comments box", () => {
     const el = mount("pbs-form", form);
     const seen = answers();
     click(one(el, '[part="submit"]'));
-    expect(seen.details[0]?.fields.some(([name]) => name === "note")).toBe(false);
+    expect(seen.details[0]?.fields.some(([name]) => name === "pi-note")).toBe(false);
     seen.stop();
   });
 
@@ -44,8 +44,8 @@ describe("the other-comments box", () => {
     const c = mount("pbs-checklist", checklist);
     type(one(c, NOTE), "check later");
     click(one(c, '[part="submit"]'));
-    expect(seen.details[0]?.fields).toContainEqual(["note", "overall fine"]);
-    expect(seen.details[1]?.fields).toContainEqual(["note", "check later"]);
+    expect(seen.details[0]?.fields).toContainEqual(["pi-note", "overall fine"]);
+    expect(seen.details[1]?.fields).toContainEqual(["pi-note", "check later"]);
     seen.stop();
   });
 
@@ -56,7 +56,7 @@ describe("the other-comments box", () => {
     click(one(el, '[part="pick"]'));
     expect(seen.details[0]?.fields).toEqual([
       ["picked", "A"],
-      ["note", "but cheaper"],
+      ["pi-note", "but cheaper"],
     ]);
     seen.stop();
   });
@@ -65,9 +65,48 @@ describe("the other-comments box", () => {
     const el = mount("pbs-review", review);
     el.answered = [
       ["title", "R"],
-      ["note", "sent words"],
+      ["pi-note", "sent words"],
     ];
     expect(el.shadowRoot?.textContent).toContain("Other comments");
     expect(el.shadowRoot?.textContent).toContain("sent words");
+  });
+});
+
+describe("the note box in locked and unlocked views", () => {
+  test("options: the box sits above the options", () => {
+    const el = mount("pbs-options", options);
+    const box = one(el, '[part="note-field"]');
+    const grid = one(el, '[part="grid"]');
+    expect(box.compareDocumentPosition(grid) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  test("locked options, checklist and form show the sent note", () => {
+    const o = mount("pbs-options", options);
+    o.answered = [
+      ["picked", "A"],
+      ["pi-note", "o words"],
+    ];
+    expect(o.shadowRoot?.textContent).toContain("o words");
+    const c = mount("pbs-checklist", checklist);
+    c.answered = [
+      ["a", "checked"],
+      ["pi-note", "c words"],
+    ];
+    expect(c.shadowRoot?.textContent).toContain("c words");
+    const f = mount("pbs-form", form);
+    f.answered = [
+      ["why", "x"],
+      ["pi-note", "f words"],
+    ];
+    expect(f.shadowRoot?.textContent).toContain("f words");
+  });
+
+  test("locked without a note shows no other-comments line", () => {
+    const c = mount("pbs-checklist", checklist);
+    c.answered = [["a", "checked"]];
+    expect(c.shadowRoot?.textContent).not.toContain("Other comments");
+    const o = mount("pbs-options", options);
+    o.answered = [["picked", "A"]];
+    expect(o.shadowRoot?.textContent).not.toContain("Other comments");
   });
 });

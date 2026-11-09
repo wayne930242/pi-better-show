@@ -43,6 +43,15 @@ export class PbsOptions extends PbsElement<OptionsData> {
       this.focusIn("[data-selected] button");
     };
     return [
+      ...(locked
+        ? sentNote
+          ? [h("p", { part: "sent-note", class: "status" }, `${this.t("otherComments")}: ${sentNote}`)]
+          : []
+        : [
+            noteBox(this.t("otherComments"), this.#note, (text) => {
+              this.#note = text;
+            }),
+          ]),
       h(
         "div",
         { part: "grid", class: "grid", role: "list", "aria-label": this.t("options") },
@@ -98,15 +107,6 @@ export class PbsOptions extends PbsElement<OptionsData> {
           );
         }),
       ),
-      ...(locked
-        ? sentNote
-          ? [h("p", { part: "sent-note", class: "status" }, `${this.t("otherComments")}: ${sentNote}`)]
-          : []
-        : [
-            noteBox(this.t("otherComments"), this.#note, (text) => {
-              this.#note = text;
-            }),
-          ]),
       h("p", { part: "status", class: "status", role: "status", "aria-live": "polite" }, locked ? this.t("sent") : ""),
     ];
   }

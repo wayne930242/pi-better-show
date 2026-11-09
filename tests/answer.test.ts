@@ -8,10 +8,10 @@ describe("encodeAnswer is byte-compatible with pi-herdr-doc-review", () => {
   test("form", () => {
     const fields: [string, string][] = [
       ["q1", "新 skill"],
-      ["memo", "a&b c"],
+      ["note", "a&b c"],
     ];
     expect(encodeAnswer({ kind: "form", fields })).toBe(
-      "User submitted a form in the HTML review pane:\n- q1: 新 skill\n- memo: a&b c",
+      "User submitted a form in the HTML review pane:\n- q1: 新 skill\n- note: a&b c",
     );
     expect(encodeAnswer({ kind: "form", fields: [["q2", "yes"]] })).toBe(
       "User submitted a form in the HTML review pane:\n- q2: yes",

@@ -146,7 +146,8 @@ export function validateAnswer(block: BlockSegment, answer: Answer): Validation 
   const expected = KINDS[block.kind];
   if (expected === undefined) return fail(`a ${block.kind} block takes no answer`);
   if (answer.kind !== expected) return fail(`answer kind ${quoted(answer.kind)} does not fit a ${block.kind} block`);
-  if (answer.fields.length > MAX_FIELDS) return fail(`more than ${MAX_FIELDS} fields`);
+  if (answer.fields.filter(([name]) => name !== NOTE_FIELD).length > MAX_FIELDS)
+    return fail(`more than ${MAX_FIELDS} fields`);
   if (answer.fields.some(([name, value]) => name.length > MAX_LENGTH || value.length > MAX_LENGTH))
     return fail(`a field is longer than ${MAX_LENGTH} characters`);
   const notes = answer.fields.filter(([name]) => name === NOTE_FIELD);

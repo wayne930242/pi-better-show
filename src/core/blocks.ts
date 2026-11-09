@@ -41,7 +41,7 @@ export function options(data: unknown): OptionsData {
  * The reserved field every submittable block may add to its answer: the free text from the "Other comments" box.
  * It is omitted when the box is empty, appears at most once, and no form question or checklist item may use the name.
  */
-export const NOTE_FIELD = "note";
+export const NOTE_FIELD = "pi-note";
 
 const QUESTION_TYPES = ["single", "multi", "text"] as const;
 
@@ -62,7 +62,7 @@ function question(item: unknown): QuestionData {
   const label = text(raw.label, "label");
   const name = text(raw.name, "name") ?? label;
   if (name === undefined) throw new Error("each question needs a name or a label");
-  if (name === NOTE_FIELD) throw new Error('the question name "note" is reserved for the other-comments box');
+  if (name === NOTE_FIELD) throw new Error('the question name "pi-note" is reserved for the other-comments box');
   const entries: unknown[] = Array.isArray(raw.choices) ? raw.choices : list(raw.choices, "choices");
   const choices = entries.map(choice);
   const type: QuestionType = oneOf(raw.type, QUESTION_TYPES, "type") ?? (choices.length > 0 ? "single" : "text");

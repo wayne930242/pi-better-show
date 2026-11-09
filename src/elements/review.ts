@@ -1,4 +1,4 @@
-import { reviewItemName } from "../core/blocks.ts";
+import { NOTE_FIELD, reviewItemName } from "../core/blocks.ts";
 import { inlinePlain } from "../core/inline.ts";
 import type { ReviewData, ReviewItemData } from "../core/types.ts";
 import { type AnsweredFields, define, PbsElement } from "./base.ts";
@@ -180,7 +180,7 @@ export class PbsReview extends PbsElement<ReviewData> {
     const comments = values("comment");
     const [picked] = values("picked");
     const [silent] = values("silent");
-    const [note] = values("note");
+    const [note] = values(NOTE_FIELD);
     const row = (label: string, value: string) => h("div", null, h("dt", null, label), h("dd", null, value));
     return h(
       "section",

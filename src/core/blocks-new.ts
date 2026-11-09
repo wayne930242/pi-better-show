@@ -61,7 +61,7 @@ export function checklist(data: unknown): ChecklistData {
       const label = text(item.label ?? item.name, "label");
       if (label === undefined) throw new Error("each checklist item needs a label or a name");
       const name = text(item.name, "name") ?? label;
-      if (name === NOTE_FIELD) throw new Error('the item name "note" is reserved for the other-comments box');
+      if (name === NOTE_FIELD) throw new Error('the item name "pi-note" is reserved for the other-comments box');
       return {
         name,
         label,

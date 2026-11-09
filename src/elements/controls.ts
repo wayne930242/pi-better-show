@@ -68,8 +68,6 @@ export function noteBox(label: string, value: string, onInput: (text: string) =>
     class: "note-box",
     maxlength: 1024,
     rows: 2,
-    "aria-label": label,
-    placeholder: label,
     value,
   });
   box.addEventListener("input", () => onInput(box.value));
