@@ -129,8 +129,9 @@ function reservedName(block: BlockSegment): string | undefined {
 
 /**
  * Whether an untrusted `answer` fits `block`: its kind is the block's, every field names a question, choice, or item
- * of the block, several values appear only for a `multi` form question, required questions are answered, an optional `note` field (the "Other comments" box, once) is accepted on every kind, and there
- * are at most 64 fields of 1,024 characters each.
+ * of the block, several values appear only for a `multi` form question, required questions are answered, one optional
+ * `pi-note` field (the "Other comments" box) is accepted on every kind, and there are at most 64 fields of 1,024
+ * characters each.
  */
 export function validateAnswer(block: BlockSegment, answer: Answer): Validation {
   // The answer comes from outside: check its shape before reading it.

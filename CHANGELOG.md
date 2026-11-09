@@ -4,14 +4,12 @@
 
 ## 0.5.0 - 2026-11-09
 
-Additive. Hosts upgrade core and elements together: an older `validateAnswer` refuses an answer that carries a non-blank `pi-note`.
+Minor bump. Hosts upgrade core and elements together: an older `validateAnswer` refuses an answer that carries a non-blank `pi-note`, so the Other comments box would fail to send.
 
 - `checkBlocks(markdown, options?)` and `formatProblems` in core: for each block, the problems an author needs to fix, with the line in the Markdown file, the key path, a message, and `error` or `warning`. Errors: every invalid block (YAML errors at the line that caused them, a flow map broken by an unquoted ` #` at the line that opened it, tree and mindmap errors at their line), a diagram the `mermaid` hook refuses. Warnings: a plain value cut short by ` #` (silently parsed as a YAML comment), an unknown key at any level the converters read (with the known keys and a near-miss suggestion), a fence that never closes. `BlockProblem` and `CheckOptions` are exported.
 - `show_doc` appends the block problems of each Markdown document it opens, page or edit view, after its usual text (`Block problems in notes.md:` then one line per problem); the text is unchanged when there are none.
 - A `write` or `edit` of a `.md` file that holds a block fence returns the same list in the tool's own result, so the agent sees it at once. The checker, the YAML parser, and Mermaid load on first use; files without block fences cost a regular expression.
 - Mermaid is checked in the extension with `beautiful-mermaid` (diagram type and what it can draw); core takes the check as a hook and stays free of it.
-
-Minor bump. Hosts must upgrade core together with the elements: an older `validateAnswer` refuses an answer that carries a non-blank note (an unknown field), so the box would fail to send.
 
 - Every submittable block (`pbs-form`, `pbs-review`, `pbs-checklist`, and `pbs-options` on a pick, with their React wrappers) shows a fixed free-text box "Other comments" (`其他意見` in Traditional Chinese, key `otherComments` in `configure({strings})`). Its trimmed text goes out in the same answer as the reserved field `pi-note` (`NOTE_FIELD`, namespaced like `pi-kind`, exported from core); a blank box sends no field. A locked element shows the note that was sent.
 - `validateAnswer` accepts at most one `pi-note` field on every interactive kind, under the usual 1,024-character cap, and does not let it count as an answer or toward the 64-field cap. A form question or checklist item named `pi-note` does not parse (and `validateAnswer` refuses a hand-built block that has one), so the field cannot collide.
