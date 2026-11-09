@@ -253,7 +253,8 @@ describe("checkBlocks: the key lists match the converters", () => {
     cards: "cards:\n  - {title: T, tone: ok, body: B}",
     options: "options:\n  - {title: T, recommended: true, body: B, pros: [p], cons: [c]}",
     form: "title: T\nsubmit: S\nquestions:\n  - {name: q, label: L, type: single, hint: H, required: true, other: false, choices: [{value: v, label: L, note: N, recommended: true}]}",
-    review: "title: T\nsubmit: S\npick: true\ncolumns: 2\nitems:\n  - {name: A, label: L, image: a.png, page: p.html, height: 90, body: B}",
+    review:
+      "title: T\nsubmit: S\npick: true\ncolumns: 2\nitems:\n  - {name: A, label: L, image: a.png, page: p.html, height: 90, body: B}",
     suggest: "items:\n  - {label: L, text: X}",
     checklist: "title: T\nsubmit: S\nitems:\n  - {name: n, label: L, checked: true, note: N}",
     table:
