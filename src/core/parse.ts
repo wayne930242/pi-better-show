@@ -96,20 +96,39 @@ function trimBlankEdges(lines: string[]): string {
   return lines.slice(start, end).join("\n");
 }
 
+/** A segment with the 1-based line of the document where it starts (a block's opening fence); `closed` is false for a fence that never closes. */
+export interface Located {
+  segment: Segment;
+  line: number;
+  closed: boolean;
+  /** A fenced block's text between its fences, as converted; empty for prose and alerts. */
+  source: string;
+}
+
 /**
  * Splits a document into its prose and its blocks, in order. A block is a fenced code block whose first
  * word names a block kind (`form`, `table`, ...), or a GitHub alert; other code, and prose, stay Markdown.
  * A block whose body does not fit its schema becomes an `invalid` segment that keeps its source and the reason.
  */
 export function parse(markdown: string): Segment[] {
+  return locate(markdown).map((located) => located.segment);
+}
+
+/** `parse` with where each segment starts; `checkBlocks` reports problems by these lines. */
+export function locate(markdown: string): Located[] {
   const lines = markdown.replace(/\r\n?/g, "\n").split("\n");
-  const segments: Segment[] = [];
+  const segments: Located[] = [];
   let prose: string[] = [];
+  let proseLine = 1;
   let index = 0;
   const flush = () => {
     const text = trimBlankEdges(prose);
-    if (text !== "") segments.push({ type: "markdown", text });
+    if (text !== "") segments.push({ segment: { type: "markdown", text }, line: proseLine, closed: true, source: "" });
     prose = [];
+  };
+  const addProse = (from: number, added: string[]) => {
+    if (prose.length === 0) proseLine = from + 1;
+    prose.push(...added);
   };
 
   let i = 0;
@@ -124,6 +143,7 @@ export function parse(markdown: string): Segment[] {
         body.push((lines[end] as string).replace(new RegExp(`^ {0,${indent.length}}`), ""));
         end++;
       }
+      const closed = end < lines.length;
       const stop = Math.min(end + 1, lines.length);
       const kind = (info.trim().split(/\s+/)[0] as string).toLowerCase();
       if (fenceKinds.has(kind)) {
@@ -135,9 +155,9 @@ export function parse(markdown: string): Segment[] {
           lines.slice(i, stop).join("\n"),
         );
         if (segment.type === "block") index++;
-        segments.push(segment);
+        segments.push({ segment, line: i + 1, closed, source: body.join("\n") });
       } else {
-        prose.push(...lines.slice(i, stop));
+        addProse(i, lines.slice(i, stop));
       }
       i = stop;
       continue;
@@ -150,15 +170,20 @@ export function parse(markdown: string): Segment[] {
       const data = alertOf(run);
       if (data) {
         flush();
-        segments.push({ type: "block", kind: "alert", data, raw: run.join("\n"), index: index++ });
+        segments.push({
+          segment: { type: "block", kind: "alert", data, raw: run.join("\n"), index: index++ },
+          line: i + 1,
+          closed: true,
+          source: "",
+        });
       } else {
-        prose.push(...run);
+        addProse(i, run);
       }
       i = end;
       continue;
     }
 
-    prose.push(line);
+    addProse(i, [line]);
     i++;
   }
   flush();

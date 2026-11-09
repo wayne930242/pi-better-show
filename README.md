@@ -72,12 +72,27 @@ A block whose body is not valid YAML, or does not fit its schema, becomes an `in
 ## Core API
 
 ```ts
-import { parse, toText, inline, encodeAnswer } from "pi-better-show";
+import { parse, toText, inline, encodeAnswer, checkBlocks } from "pi-better-show";
 
 parse(markdown: string): Segment[]
 ```
 
 Splits a document into `{type: "markdown", text}`, `{type: "block", kind, data, index}`, and `{type: "invalid", kind, source, error}` segments, in order. `data` is typed per kind (`BlockDataMap`). `index` counts the document's blocks of every kind from 0; invalid blocks take no number. `index` is the block's address for answers.
+
+```ts
+checkBlocks(markdown: string, options?: { mermaid?: (source: string) => string | undefined }): BlockProblem[]
+formatProblems(name: string, problems: BlockProblem[]): string
+
+interface BlockProblem {
+  kind: BlockKind;
+  line: number;                      // 1-based, in the Markdown file
+  path: string;                      // e.g. form question "o5" choice 1 label
+  message: string;
+  severity: "error" | "warning";
+}
+```
+
+Tells the author what is wrong with the blocks of a file, where `parse` only keeps going. `error`: the block is invalid and the page shows its source (a YAML error is reported at the line that caused it; a flow collection broken by an unquoted ` #` points at the line that opened it). `warning`: the block draws, but part of what was written is lost: a plain value that a ` #` cut short (YAML reads the rest as a comment; the message names the key path and says to quote the value), a key the block does not read at that level (with the known keys, and a "did you mean" for a near miss), or a fence that never closes. Core has no Mermaid parser: pass `options.mermaid`, which returns what is wrong with a diagram source, to check diagrams too. Pure; it loads no more than `parse` does.
 
 ```ts
 toText(segments: Segment[], profile: TextProfile): string
@@ -250,6 +265,8 @@ Then `/reload` in a running session.
 |---|---|
 | `page` | The default browser (`open`, `xdg-open`), one tab per page, on a loopback page server behind a random token. `.md` renders with its blocks; `.html`, `.tsx`, `.jsx` run in a sandboxed frame; images show as they are. |
 | `edit` (default) | A text file in your editor: `PI_BETTER_SHOW_EDITOR` (a command line, for example `code -r` or `subl`), else `code`, else `open -t` / `xdg-open`. It must return at once; terminal editors do not work. |
+
+**Block problems.** `show_doc` appends the problems of each Markdown document it opens (`checkBlocks`, see Core API) after its usual reply, and the `write` and `edit` tools of the agent get them in their own result for a `.md` file that holds a block fence: `Block problems in questions.md:` then `- line 40 form question "o5" choice 1 label (warning): ...`. Files without block fences are not read by the checker; the YAML parser and Mermaid load on the first file that needs them. Mermaid is checked in the extension with `beautiful-mermaid`, which validates the diagram type and parses what it draws; it does not catch every syntax slip in a flowchart.
 
 **Markdown pages.** Prose is Markdown with raw HTML left as text; every block above becomes its element. Select a passage to comment on it; the panel collects comments and an overall note and sends them in one message. A form, pick, chip, checklist, or review reaches the agent as a message: steered into a running turn, or starting a turn when the agent is idle (`encodeAnswer`). Diagrams are drawn on the server, in the page's colour scheme. Images and links resolve against the page's directory: nothing loads from above it, from a dot file or directory, or from another site. Every response carries a CSP, and the server answers only the loopback host.
 

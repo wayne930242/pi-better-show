@@ -125,9 +125,11 @@ export function fakePi() {
     },
   };
   const on = (channel: string) => emitted.filter((event) => event.channel === channel).map((event) => event.data);
-  /** Runs the extension's handlers for a pi event, as pi would. */
-  const fire = async (name: string, event: unknown, ctx: unknown) => {
-    for (const handler of handlers.get(name) ?? []) await handler(event, ctx);
+  /** Runs the extension's handlers for a pi event, as pi would; returns the last result a handler gave. */
+  const fire = async (name: string, event: unknown, ctx: unknown): Promise<unknown> => {
+    let result: unknown;
+    for (const handler of handlers.get(name) ?? []) result = (await handler(event, ctx)) ?? result;
+    return result;
   };
   return { pi: pi as unknown as ExtensionAPI, sent, emitted, on, bus: pi.events, tools, fire };
 }

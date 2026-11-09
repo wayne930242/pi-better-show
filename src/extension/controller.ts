@@ -15,6 +15,7 @@ import { basename, dirname, isAbsolute, join, relative, resolve } from "node:pat
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { encodeAnswer } from "../core/answer.ts";
 import type { Answer } from "../core/types.ts";
+import { checkText } from "./check.ts";
 import {
   ANSWER_EVENT,
   ANSWER_RESULT_EVENT,
@@ -319,13 +320,35 @@ export function createBetterShow(pi: ExtensionAPI, deps: Deps = defaultDeps()) {
     return fromHome.startsWith("..") || isAbsolute(fromHome) ? basename(absolute) : join("~", fromHome);
   };
 
+  const nameFor = (cwd: string, absolute: string): string => {
+    const rel = relative(deps.realpath(cwd), absolute);
+    return rel.startsWith("..") ? outside(absolute) : rel;
+  };
+
   const load = (cwd: string, path: string): Loaded => {
     if (/[\n\r]/.test(path)) throw new Error(`cannot open a path containing a line break: ${JSON.stringify(path)}`);
     const absolute = deps.realpath(isAbsolute(path) ? path : resolve(cwd, path));
     const content = deps.readFile(absolute);
     if (content === undefined) throw new Error(`cannot read ${path}`);
-    const rel = relative(deps.realpath(cwd), absolute);
-    return { absolute, content, display: rel.startsWith("..") ? outside(absolute) : rel };
+    return { absolute, content, display: nameFor(cwd, absolute) };
+  };
+
+  /** What is wrong with the blocks of a Markdown text, worded for the agent; a failure of the check itself is reported, not hidden. */
+  const problemsIn = async (display: string, content: string): Promise<string | undefined> => {
+    try {
+      return await checkText(display, content);
+    } catch (error) {
+      return `Block check of ${display} failed: ${(error as Error).message}`;
+    }
+  };
+
+  /** The block problems of a Markdown file the agent just wrote, or undefined. */
+  const problemsOfFile = async (cwd: string, absolute: string): Promise<string | undefined> => {
+    if (!MARKDOWN_FILE.test(absolute)) return undefined;
+    const content = deps.readFile(absolute);
+    return content === undefined
+      ? undefined
+      : problemsIn(docs.get(absolute)?.display ?? nameFor(cwd, absolute), content);
   };
 
   /** Opens pages in the default browser; a page whose tab the user closed opens again. */
@@ -396,9 +419,15 @@ export function createBetterShow(pi: ExtensionAPI, deps: Deps = defaultDeps()) {
       opened.push(`${list(texts)} in ${editor}`);
     }
     const feedback = texts.length > 0 ? " Their saved edits will reach you as review feedback." : "";
+    const checks = (
+      await Promise.all(
+        loaded.filter((doc) => MARKDOWN_FILE.test(doc.absolute)).map((doc) => problemsIn(doc.display, doc.content)),
+      )
+    ).filter((found): found is string => found !== undefined);
+    const problems = checks.map((found) => `\n\n${found}`).join("");
     return {
       opened: loaded.map((doc) => doc.display),
-      text: `Opened ${opened.join(" and ")} and returned without waiting for the user.${feedback}`,
+      text: `Opened ${opened.join(" and ")} and returned without waiting for the user.${feedback}${problems}`,
     };
   };
 
@@ -445,6 +474,7 @@ export function createBetterShow(pi: ExtensionAPI, deps: Deps = defaultDeps()) {
 
   return {
     show,
+    problemsOfFile,
     docs,
     pages,
     edits,

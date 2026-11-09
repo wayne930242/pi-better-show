@@ -25,7 +25,8 @@ export const DESCRIPTION =
   "Put decisions that belong to the page (several questions, or a choice after a comparison) in a ```form at its end; ask a single short question with your question tool. " +
   'An .html page runs as written under a sandbox (scripts and forms, no storage, nothing from other sites): a <form action="cgi-bin:pi-answer"> sends its fields to you when submitted, and piBetterShow.send(fields) does the same from a script. ' +
   'When a page needs interaction (inputs that recompute, tabs, filters), write a .tsx or .jsx file and open it with view "page": React is built in, and the "pi-kit" module exports PbsBlock, PbsForm, PbsOptions, PbsReview, PbsChecklist, PbsTable, PbsCallout, PbsCards, PbsMindmap, PbsSuggest, PbsSteps, PbsStats, PbsDiff, PbsDiagram, PbsTree (props data, onAnswer; PbsBlock draws a parsed block), parse, encodeAnswer, and send(answer or fields) to hand you any values as a message. Import sibling modules freely; import no CSS. ' +
-  "It returns at once without waiting for the user. Pages reload and edited documents refresh when you change them.";
+  'It returns at once without waiting for the user. Block problems (a block that will not parse, a text value cut at " #", an unknown key) come back with line numbers in its result and in the result of your write or edit of a .md file; quote text values that hold " #" or ": ". ' +
+  "Pages reload and edited documents refresh when you change them.";
 
 export const parameters = Type.Object({
   paths: Type.Array(Type.String({ description: "File path, absolute or relative to the working directory" }), {

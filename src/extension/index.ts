@@ -55,9 +55,16 @@ export function install(pi: ExtensionAPI, deps: Deps = defaultDeps()): BetterSho
     const path = pathOf(ctx.cwd, event.input);
     if (!path) return;
     show.agentWrote(event.toolCallId, path);
-    if (event.isError || !ctx.hasUI || process.env[AUTO_OPEN_ENV] === "off") return;
+    if (event.isError) return;
+    // The agent reads the block problems of what it just wrote in the result of the write itself.
+    const found = await show.problemsOfFile(ctx.cwd, path);
+    const amended =
+      found === undefined
+        ? undefined
+        : { content: [...event.content, { type: "text" as const, text: `\n\n${found}` }] };
+    if (!ctx.hasUI || process.env[AUTO_OPEN_ENV] === "off") return amended;
     const followUp = show.miniSddFollowUp(path);
-    if (followUp.length === 0) return;
+    if (followUp.length === 0) return amended;
     try {
       await show.show(
         ctx.cwd,
@@ -68,6 +75,7 @@ export function install(pi: ExtensionAPI, deps: Deps = defaultDeps()): BetterSho
     } catch (error) {
       ctx.ui.notify(`better-show could not open ${path}: ${(error as Error).message}`, "warning");
     }
+    return amended;
   });
 
   const stopAnswers = pi.events.on(ANSWER_EVENT, show.onAnswer);
