@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## 0.5.1 - 2026-11-10
+
+Documentation only; no code changes.
+
+- The README is shorter: what `show_doc` does, the block kinds, screenshots of four example pages (`examples/readme-*.md`), and the measured token savings of blocks against an equivalent HTML page (`scripts/token-bench.sh`). The API and extension details moved to `docs/reference.md`.
+- `pi.image` gives the pi package gallery a preview.
+
 ## 0.5.0 - 2026-11-09
 
 Minor bump. Hosts upgrade core and elements together: an older `validateAnswer` refuses an answer that carries a non-blank `pi-note`, so the Other comments box would fail to send.
