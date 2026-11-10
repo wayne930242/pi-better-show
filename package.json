@@ -85,6 +85,7 @@
   "pi": {
     "extensions": [
       "./src/extension/index.ts"
-    ]
+    ],
+    "image": "https://raw.githubusercontent.com/wayne930242/pi-better-show/main/docs/images/decide.png"
   }
 }
