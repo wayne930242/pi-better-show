@@ -100,7 +100,10 @@ describe("package", () => {
   });
 
   test("the pi extension is declared, and pi's own packages are optional peers, never dependencies", () => {
-    expect(pkg.pi).toEqual({ extensions: ["./src/extension/index.ts"] });
+    expect(pkg.pi).toEqual({
+      extensions: ["./src/extension/index.ts"],
+      image: "https://raw.githubusercontent.com/wayne930242/pi-better-show/main/docs/images/decide.png",
+    });
     expect(pkg.keywords).toContain("pi-package");
     for (const host of ["@earendil-works/pi-coding-agent", "typebox"]) {
       expect(pkg.peerDependencies[host]).toBe("*");

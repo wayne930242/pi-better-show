@@ -2,9 +2,9 @@
 
 ## Unreleased
 
-## 0.5.1 - 2026-11-10
+## 0.5.2 - 2026-11-10
 
-Documentation only; no code changes.
+Documentation only; no code changes. (0.5.1 was tagged but not published: its package test still expected no `pi.image`.)
 
 - The README is shorter: what `show_doc` does, the block kinds, screenshots of four example pages (`examples/readme-*.md`), and the measured token savings of blocks against an equivalent HTML page (`scripts/token-bench.sh`). The API and extension details moved to `docs/reference.md`.
 - `pi.image` gives the pi package gallery a preview.
