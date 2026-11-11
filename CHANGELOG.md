@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Edit view: the user's saves are coalesced. Instead of one message per save, the agent gets the net diff of each file from the version it last saw, once: with the next run when idle (through `before_agent_start`), or steered in after the saves settle for 3 s while the agent works. Several files make one message with a section per file; a change undone before the report sends nothing; the user is told once that edits wait for their next message. A shell command's window joins the same report instead of sending its own. Before the agent writes or edits a file the user changed, that file's change goes out at once. Diffs longer than 200 lines are cut with a count of the lines left out.
+
 ## 0.5.2 - 2026-11-10
 
 Documentation only; no code changes. (0.5.1 was tagged but not published: its package test still expected no `pi.image`.)

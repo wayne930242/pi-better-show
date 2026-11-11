@@ -147,11 +147,27 @@ describe("hooks", () => {
     const ctx = { cwd: t.root, hasUI: true, isIdle: () => true, ui: { notify: () => {} } };
     await begin(t, ctx, "c1", "edit", { path: "n.md" });
     t.save("n.md", "one\ntwo\nagent\n");
-    expect(t.sent).toHaveLength(0);
     await end(t, ctx, "c1", "edit", { path: "n.md" });
     t.save("n.md", "one\ntwo\nagent\n");
-    expect(t.sent).toHaveLength(0);
+    expect(await t.startRun()).toBeUndefined();
     t.save("n.md", "one\ntwo\nagent\nuser\n");
+    expect(await t.startRun()).toBe("User edited n.md:\n```diff\n@@ -3,0 +4 @@\n+user\n```");
+  });
+
+  test("a user's save waiting when the agent edits the file goes out before the edit, once", async () => {
+    const t = setup({ files: FILES, installed: ["code"] });
+    await t.show.show(t.root, ["n.md"], "r");
+    t.state.idle = false;
+    const ctx = { cwd: t.root, hasUI: true, isIdle: () => false, ui: { notify: () => {} } };
+    t.save("n.md", "one\ntwo\nuser\n");
+    await begin(t, ctx, "c1", "edit", { path: "n.md" });
+    expect(t.sent.map((sent) => [sent.message.content, sent.options])).toEqual([
+      ["User edited n.md:\n```diff\n@@ -2,0 +3 @@\n+user\n```", { deliverAs: "steer" }],
+    ]);
+    t.save("n.md", "one\ntwo\nuser\nagent\n");
+    await end(t, ctx, "c1", "edit", { path: "n.md" });
+    t.settle();
+    expect(await t.startRun()).toBeUndefined();
     expect(t.sent).toHaveLength(1);
   });
 
@@ -163,33 +179,49 @@ describe("hooks", () => {
     await t.fire("tool_call", { toolCallId: "b1", toolName: "bash", input: { command: "x" } }, ctx);
     await t.fire("tool_call", { toolCallId: "b2", toolName: "edit", input: { path: "n.md" } }, ctx);
     t.save("n.md", "one\ntwo\nfirst\n");
-    expect(t.sent).toHaveLength(1);
+    expect(await t.startRun()).toContain("+first");
     // Started and aborted: no result arrives, and the turn's end releases it.
     await begin(t, ctx, "b3", "bash", { command: "sleep 100" });
     await begin(t, ctx, "b4", "edit", { path: "n.md" });
     await t.fire("agent_end", {}, ctx);
     t.save("n.md", "one\ntwo\nfirst\nsecond\n");
-    expect(t.sent).toHaveLength(2);
-    expect(t.sent[1]?.message.content).toContain("+second");
+    const next = await t.startRun();
+    expect(next).toContain("+second");
+    expect(next).not.toContain("+first");
   });
 
-  test("a save while a shell command runs is reported when it ends, labeled as possibly including the command's own changes", async () => {
+  test("a save while a shell command runs is reported with the next run, labeled as possibly including the command's own changes", async () => {
     const t = setup({ files: FILES, installed: ["code"] });
     await t.show.show(t.root, ["n.md"], "r");
     const ctx = { cwd: t.root, hasUI: true, isIdle: () => true, ui: { notify: () => {} } };
     await begin(t, ctx, "s1", "bash", { command: "make" });
     t.save("n.md", "one\ntwo\nuser\n");
-    expect(t.sent).toHaveLength(0);
     await end(t, ctx, "s1", "bash", { command: "make" });
-    expect(t.sent).toHaveLength(1);
-    expect(t.sent[0]?.message.content).toContain("n.md changed while a shell command ran");
-    expect(t.sent[0]?.message.content).toContain("may include the command's own changes");
-    expect(t.sent[0]?.message.content).toContain("+user");
+    t.save("n.md", "one\ntwo\nuser\nmore\n");
+    // The window and the save after it make one report, not two.
+    const report = await t.startRun();
+    expect(report).toContain("n.md changed while a shell command ran");
+    expect(report).toContain("may include the command's own changes");
+    expect(report).toContain("+user\n+more");
+    expect(report?.match(/```diff/g)).toHaveLength(1);
     // The same content is not reported twice, and a shell command that left the file alone reports nothing.
-    t.save("n.md", "one\ntwo\nuser\n");
+    t.save("n.md", "one\ntwo\nuser\nmore\n");
     await begin(t, ctx, "s2", "bash", { command: "ls" });
     await end(t, ctx, "s2", "bash", { command: "ls" });
-    expect(t.sent).toHaveLength(1);
+    expect(await t.startRun()).toBeUndefined();
+    expect(t.sent).toHaveLength(0);
+  });
+
+  test("a run that starts without a prompt still gets the waiting edits once the saves settle", async () => {
+    const t = setup({ files: FILES, installed: ["code"] });
+    await t.show.show(t.root, ["n.md"], "r");
+    t.save("n.md", "one\ntwo\nqueued\n");
+    t.state.idle = false;
+    await t.fire("agent_start", {}, {});
+    t.settle();
+    expect(t.sent.map((sent) => [sent.message.content, sent.options])).toEqual([
+      ["User edited n.md:\n```diff\n@@ -2,0 +3 @@\n+queued\n```", { deliverAs: "steer" }],
+    ]);
   });
 
   test("the session end empties the list and ends the page server", async () => {

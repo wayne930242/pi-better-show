@@ -27,7 +27,15 @@ import {
   type PublishedDocument,
   parseAnswer,
 } from "./contract.ts";
-import { createEditSession, defaultLaunch, defaultRun, EDITOR_ENV, type EditDeps, WATCH_MS } from "./edit.ts";
+import {
+  createEditSession,
+  defaultLaunch,
+  defaultRun,
+  EDITOR_ENV,
+  type EditDeps,
+  SETTLE_MS,
+  WATCH_MS,
+} from "./edit.ts";
 import { createAllowList, HTML_FILE, IMAGE_FILE, MARKDOWN_FILE, REACT_FILE } from "./files.ts";
 import type { PageServer, PageServerOptions } from "./server.ts";
 
@@ -58,6 +66,8 @@ export interface Deps extends EditDeps {
   realpath: (path: string) => string;
   newId: () => string;
   now: () => number;
+  /** Runs `run` after `ms`; the returned function cancels it. */
+  schedule: (run: () => void, ms: number) => () => void;
 }
 
 /**
@@ -96,6 +106,11 @@ export const defaultDeps = (): Deps => ({
   realpath: (path) => (existsSync(path) ? realpathSync(path) : path),
   newId: randomUUID,
   now: Date.now,
+  schedule: (run, ms) => {
+    const timer = setTimeout(run, ms);
+    timer.unref?.();
+    return () => clearTimeout(timer);
+  },
 });
 
 interface DocEntry {
@@ -143,7 +158,48 @@ export function createBetterShow(pi: ExtensionAPI, deps: Deps = defaultDeps()) {
     if (ctx?.hasUI) ctx.ui.notify(`${notice} go to the agent with your next message.`, "info");
   };
 
-  const edits = createEditSession(deps, (message, display) => deliver(message, `Your edits to ${display}`));
+  // The user's saves are held, not sent one by one: when idle, their net change joins the next run as it starts;
+  // while the agent works, it is steered in once the saves stop for SETTLE_MS.
+  let cancelSettle: (() => void) | undefined;
+  /** The file of the last change waiting to be reported, while one waits. */
+  let waiting: string | undefined;
+  /** The user was told their edits wait for their next message. */
+  let told = false;
+  const busy = (): boolean => ctx !== undefined && !ctx.isIdle();
+  const editMessage = (text: string) => ({ customType: MESSAGE_TYPE, content: text, display: true });
+  const stopSettle = (): void => {
+    cancelSettle?.();
+    cancelSettle = undefined;
+  };
+  /** Takes every unreported change; the user's next change starts a new report. */
+  const takeEdits = (): string | undefined => {
+    stopSettle();
+    waiting = undefined;
+    told = false;
+    return edits.take();
+  };
+  const tellHeld = (display: string): void => {
+    if (told || !ctx?.hasUI) return;
+    told = true;
+    ctx.ui.notify(`Your edits to ${display} go to the agent with your next message.`, "info");
+  };
+  const settleLater = (display: string): void => {
+    stopSettle();
+    cancelSettle = deps.schedule(() => {
+      cancelSettle = undefined;
+      if (!busy()) return tellHeld(display);
+      const text = takeEdits();
+      if (text) pi.sendMessage(editMessage(text), { deliverAs: "steer" });
+    }, SETTLE_MS);
+  };
+  const edits = createEditSession(deps, {
+    changed: (display) => {
+      waiting = display;
+      if (busy()) settleLater(display);
+      else tellHeld(display);
+    },
+    urgent: (text) => deliver(text, "Your edits"),
+  });
 
   const listed = (): PublishedDocument[] =>
     [...docs.values()].map((entry) => ({
@@ -462,8 +518,20 @@ export function createBetterShow(pi: ExtensionAPI, deps: Deps = defaultDeps()) {
   /** A turn or run ended: tool calls that never ended no longer hold back the user's saves. */
   const agentSettled = (): void => edits.settle();
 
+  /** A run starts: the user's edits since the agent last saw each file join it as one message, or nothing when none changed. */
+  const agentStarting = (): { customType: string; content: string; display: boolean } | undefined => {
+    const text = takeEdits();
+    return text ? editMessage(text) : undefined;
+  };
+
+  /** A run started without a prompt (a queued message or a retry): edits still waiting go in once the saves settle. */
+  const agentStarted = (): void => {
+    if (waiting !== undefined && !cancelSettle) settleLater(waiting);
+  };
+
   const shutdown = (): void => {
     closed = true;
+    stopSettle();
     docs.clear();
     answers.clear();
     edits.close();
@@ -484,6 +552,8 @@ export function createBetterShow(pi: ExtensionAPI, deps: Deps = defaultDeps()) {
     agentWrote,
     agentWillWrite,
     agentSettled,
+    agentStarting,
+    agentStarted,
     shutdown,
     setContext: (next: ExtensionContext) => {
       ctx = next;

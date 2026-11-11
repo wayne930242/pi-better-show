@@ -367,23 +367,42 @@ describe("show_doc edit view", () => {
     await expect(missing.show.show(missing.root, ["n.md"], "r")).rejects.toThrow(/nope-editor is not on PATH/);
   });
 
-  test("a save sends the zero-context diff since the agent's last version: steered while busy, next turn when idle, never a turn of its own", async () => {
+  test("saves while idle wait for the next run, which gets one net diff; the user hears of it once", async () => {
     const t = setup({ files: FILES, installed: ["code"] });
     await t.show.show(t.root, ["n.md"], "r");
     expect(lists(t).at(-1)?.documents[0]).toMatchObject({ kind: "text", display: "n.md", onScreen: true });
+    t.save("n.md", "one\nT\nthree\n");
+    t.save("n.md", "one\nTW\nthree\n");
     t.save("n.md", "one\nTWO\nthree\n");
-    expect(t.sent).toHaveLength(1);
-    expect(t.sent[0]?.options).toEqual({ deliverAs: "nextTurn" });
-    expect(t.sent[0]?.options?.triggerTurn).toBeUndefined();
-    expect(t.sent[0]?.message.content).toBe("User edited n.md:\n```diff\n@@ -2 +2 @@\n-two\n+TWO\n```");
-    expect(t.notices.at(-1)?.[1]).toBe("info");
+    t.settle();
+    expect(t.sent).toHaveLength(0);
+    expect(t.notices).toEqual([["Your edits to n.md go to the agent with your next message.", "info"]]);
+    expect(await t.startRun()).toBe("User edited n.md:\n```diff\n@@ -2 +2 @@\n-two\n+TWO\n```");
+    // Reported: the next run gets nothing, and saving what the agent already saw sends nothing.
+    t.save("n.md", "one\nTWO\nthree\n");
+    expect(await t.startRun()).toBeUndefined();
+    expect(t.sent).toHaveLength(0);
+  });
+
+  test("saves while the agent works are steered in once they settle, as one net diff", async () => {
+    const t = setup({ files: FILES, installed: ["code"] });
+    await t.show.show(t.root, ["n.md"], "r");
     t.state.idle = false;
-    t.save("n.md", "one\nTWO\nthree\nfour\n");
-    expect(t.sent[1]?.options).toEqual({ deliverAs: "steer" });
-    expect(t.sent[1]?.message.content).toBe("User edited n.md:\n```diff\n@@ -3,0 +4 @@\n+four\n```");
-    // Saving what the agent already saw sends nothing.
-    t.save("n.md", "one\nTWO\nthree\nfour\n");
-    expect(t.sent).toHaveLength(2);
+    t.save("n.md", "one\ntwo\nthree\nf\n");
+    t.save("n.md", "one\ntwo\nthree\nfour\n");
+    expect(t.sent).toHaveLength(0);
+    // Each save restarts the wait: one timer is due.
+    expect(t.timers.size).toBe(1);
+    t.settle();
+    expect(t.sent).toHaveLength(1);
+    expect(t.sent[0]?.options).toEqual({ deliverAs: "steer" });
+    expect(t.sent[0]?.message.content).toBe("User edited n.md:\n```diff\n@@ -3,0 +4 @@\n+four\n```");
+    // A change and its undo before the wait ends send nothing.
+    t.save("n.md", "one\ntwo\nthree\nfour\nfive\n");
+    t.save("n.md", "one\ntwo\nthree\nfour\n");
+    t.settle();
+    expect(t.sent).toHaveLength(1);
+    expect(t.notices).toEqual([]);
   });
 
   test("what the agent wrote itself is not the user's edit", async () => {
@@ -392,31 +411,30 @@ describe("show_doc edit view", () => {
     // The edit tool starts, the file changes, the watcher notices before the tool result arrives.
     t.show.agentWillWrite("e1", t.path("n.md"));
     t.save("n.md", "one\ntwo\nthree\nagent line\n");
-    expect(t.sent).toHaveLength(0);
     t.show.agentWrote("e1", t.path("n.md"));
     t.save("n.md", "one\ntwo\nthree\nagent line\n");
-    expect(t.sent).toHaveLength(0);
+    expect(await t.startRun()).toBeUndefined();
     // The next user save diffs against the agent's version.
     t.save("n.md", "one\ntwo\nthree\nagent line\nuser line\n");
-    expect(t.sent[0]?.message.content).toContain("+user line");
-    expect(t.sent[0]?.message.content).not.toContain("agent line\n+");
-    // A shell command may touch any shown file.
+    const user = await t.startRun();
+    expect(user).toContain("+user line");
+    expect(user).not.toContain("agent line\n+");
+    // A shell command may touch any shown file; its change waits and is labeled as possibly the command's own.
     t.show.agentWillWrite("s1", undefined);
     t.save("n.md", "from the shell\n");
-    expect(t.sent).toHaveLength(1);
-    // Its end reports what changed in the window, as possibly the command's own.
     t.show.agentWrote("s1", undefined);
-    expect(t.sent).toHaveLength(2);
-    expect(t.sent[1]?.message.content).toContain("changed while a shell command ran");
+    expect(await t.startRun()).toContain("changed while a shell command ran");
     t.save("n.md", "from the shell\n");
-    expect(t.sent).toHaveLength(2);
+    expect(await t.startRun()).toBeUndefined();
+    expect(t.sent).toHaveLength(0);
   });
 
-  test("a long diff is cut, and the shutdown stops watching", async () => {
+  test("a long diff is cut with a count of the lines left out, and the shutdown stops watching", async () => {
     const t = setup({ files: FILES, installed: ["code"] });
     await t.show.show(t.root, ["n.md"], "r");
-    t.save("n.md", `${"x".repeat(30_000)}\n`);
-    expect(t.sent[0]?.message.content).toContain("… (truncated; read n.md)");
+    t.save("n.md", `${Array.from({ length: 300 }, (_, line) => `line ${line}`).join("\n")}\n`);
+    const report = await t.startRun();
+    expect(report).toContain("… (truncated: 104 more diff lines; read n.md)");
     t.show.shutdown();
     expect(t.watchers.size).toBe(0);
   });

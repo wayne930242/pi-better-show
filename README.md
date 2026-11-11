@@ -49,7 +49,7 @@ If you use `pi-herdr-doc-review`, uninstall it first (`pi uninstall npm:pi-herdr
 - `view: "page"` opens the file in your default browser.
   Markdown renders with its blocks; `.html`, `.tsx`, and `.jsx` run in a sandboxed frame; images show as they are.
 - `view: "edit"` (the default) opens the file in your editor.
-  Each save reaches the agent as a diff, without starting a turn.
+  Your saves reach the agent as one net diff per file, without starting a turn.
 - Select any passage on a page to comment on it.
   The feedback panel sends your comments and an overall note in one message.
 - Open pages reload when the agent edits the file.

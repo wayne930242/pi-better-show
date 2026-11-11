@@ -3,7 +3,7 @@ import { encodeAnswer } from "../../src/core/index.ts";
 import { frameAnswer, frameSelection, MAX_SELECTION } from "../../src/extension/client/bridge.ts";
 import { feedbackAnswer, mountFeedback, wordsFor } from "../../src/extension/client/feedback.ts";
 import { parseAnswer } from "../../src/extension/contract.ts";
-import { feedbackMessage, MAX_DIFF_CHARS, shellWords } from "../../src/extension/edit.ts";
+import { feedbackMessage, MAX_DIFF_CHARS, MAX_DIFF_LINES, shellWords } from "../../src/extension/edit.ts";
 import { createAllowList } from "../../src/extension/files.ts";
 import { injectFrameHook } from "../../src/extension/server.ts";
 
@@ -54,12 +54,15 @@ describe("edit mode helpers", () => {
     expect(() => shellWords("code 'unterminated")).toThrow(/unterminated/);
   });
 
-  test("feedbackMessage drops the file headers and truncates a long diff", () => {
+  test("feedbackMessage drops the file headers and cuts a long diff, saying how many lines it left out", () => {
     const diff = "--- a/x.md\n+++ b/x.md\n@@ -1 +1 @@\n-a\n+b\n";
     expect(feedbackMessage("x.md", diff)).toBe("User edited x.md:\n```diff\n@@ -1 +1 @@\n-a\n+b\n```");
-    const long = feedbackMessage("x.md", "+".repeat(MAX_DIFF_CHARS + 50));
-    expect(long).toContain("… (truncated; read x.md)");
-    expect(long.length).toBeLessThan(MAX_DIFF_CHARS + 100);
+    const wide = feedbackMessage("x.md", "+".repeat(MAX_DIFF_CHARS + 50));
+    expect(wide).toContain("… (truncated; read x.md)");
+    expect(wide.length).toBeLessThan(MAX_DIFF_CHARS + 100);
+    const many = Array.from({ length: MAX_DIFF_LINES + 7 }, (_, line) => `+${line}`).join("\n");
+    const tall = feedbackMessage("x.md", `@@ -0,0 +1,${MAX_DIFF_LINES + 6} @@\n${many}\n`);
+    expect(tall).toEndWith(`+${MAX_DIFF_LINES - 2}\n… (truncated: 8 more diff lines; read x.md)\n\`\`\``);
   });
 });
 

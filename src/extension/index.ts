@@ -46,6 +46,13 @@ export function install(pi: ExtensionAPI, deps: Deps = defaultDeps()): BetterSho
     }
   });
   pi.on("turn_end", () => show.agentSettled());
+  // The user's saves reach the agent as one net diff per file when a run starts, instead of one message per save.
+  pi.on("before_agent_start", (_event, ctx) => {
+    show.setContext(ctx);
+    const message = show.agentStarting();
+    return message ? { message } : undefined;
+  });
+  pi.on("agent_start", () => show.agentStarted());
   pi.on("agent_end", () => show.agentSettled());
 
   pi.on("tool_result", async (event, ctx) => {

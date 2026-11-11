@@ -5,6 +5,10 @@ import { join } from "node:path";
 
 export const EDITOR_ENV = "PI_BETTER_SHOW_EDITOR";
 export const MAX_DIFF_CHARS = 20_000;
+/** A reported diff keeps at most this many lines. */
+export const MAX_DIFF_LINES = 200;
+/** While the agent works, edits are reported once the user stopped saving for this long. */
+export const SETTLE_MS = 3000;
 export const WATCH_MS = 500;
 
 export interface RunResult {
@@ -76,24 +80,27 @@ export function shellWords(line: string): string[] {
   return words;
 }
 
-/** The user's edits as zero-context hunks: the `@@` headers carry the line numbers. */
+/** The user's edits as zero-context hunks: the `@@` headers carry the line numbers. A long diff keeps its first lines and says how many it left out. */
 export function feedbackMessage(display: string, diff: string, duringShell = false): string {
-  const hunks = diff
-    .split("\n")
-    .filter((line) => !line.startsWith("--- ") && !line.startsWith("+++ "))
-    .join("\n");
-  const body =
-    hunks.length > MAX_DIFF_CHARS ? `${hunks.slice(0, MAX_DIFF_CHARS)}\n… (truncated; read ${display})\n` : hunks;
+  const lines = diff.split("\n").filter((line) => !line.startsWith("--- ") && !line.startsWith("+++ "));
+  if (lines.at(-1) === "") lines.pop();
+  const kept = lines.slice(0, MAX_DIFF_LINES).join("\n");
+  const body = kept.slice(0, MAX_DIFF_CHARS);
+  const left = lines.length - Math.min(lines.length, MAX_DIFF_LINES);
+  const more = left > 0 ? `: ${left} more diff line${left === 1 ? "" : "s"}` : "";
+  const cut = left > 0 || body.length < kept.length ? `\n… (truncated${more}; read ${display})` : "";
   const head = duringShell
     ? `${display} changed while a shell command ran; this may include the command's own changes, not only the user's edits:`
     : `User edited ${display}:`;
-  return `${head}\n\`\`\`diff\n${body}\`\`\``;
+  return `${head}\n\`\`\`diff\n${body}${cut}\n\`\`\``;
 }
 
 interface Watched {
   display: string;
-  /** The content the agent last saw. */
+  /** The content the agent last saw: the baseline of the next report. */
   snapshot: string;
+  /** Part of the change not yet reported came while a shell command ran. */
+  duringShell: boolean;
   stop: () => void;
   onError: (error: Error) => void;
 }
@@ -104,7 +111,19 @@ interface Active {
   before: Map<string, string>;
 }
 
-export function createEditSession(deps: EditDeps, onEdit: (message: string, display: string) => void) {
+export interface EditEvents {
+  /** A shown file changed in a way the agent has not seen; it waits for `take`. Called on every such change. */
+  changed: (display: string) => void;
+  /** The agent is about to write a file whose unreported change it must see first: deliver this at once. */
+  urgent: (message: string) => void;
+}
+
+/**
+ * Watches the documents opened in the user's editor and keeps what changed since the agent last saw each one.
+ * Saves are not reported one by one: `take` reports the net change of every file since the last report, once,
+ * so intermediate states never reach the agent and a change undone before the report sends nothing.
+ */
+export function createEditSession(deps: EditDeps, events: EditEvents) {
   const watched = new Map<string, Watched>();
   /**
    * Tool calls running now, by tool call id: a change seen meanwhile is the agent's. They are keyed by id so a call
@@ -144,15 +163,42 @@ export function createEditSession(deps: EditDeps, onEdit: (message: string, disp
   const paused = (path: string): boolean =>
     [...active.values()].some((call) => call.path === undefined || call.path === path);
 
-  /** Reports how `path` went from `from` to `content`, and makes `content` the version the agent saw. */
-  function report(path: string, doc: Watched, from: string, content: string, duringShell: boolean): void {
+  /** The diff of a file from what the agent saw to `content`, as a message section; the agent has now seen `content`. */
+  function report(doc: Watched, content: string): string {
     scratch ??= deps.makeDir();
     const before = join(scratch, "before");
-    deps.writeFile(before, from);
-    const diff = deps.run("diff", ["-U0", "--label", `a/${doc.display}`, "--label", `b/${doc.display}`, before, path]);
+    const after = join(scratch, "after");
+    deps.writeFile(before, doc.snapshot);
+    // The content read, not the file: a save landing between the read and the diff waits for the next report.
+    deps.writeFile(after, content);
+    const diff = deps.run("diff", ["-U0", "--label", `a/${doc.display}`, "--label", `b/${doc.display}`, before, after]);
     if (diff.status !== 0 && diff.status !== 1) throw new Error(`diff failed: ${diff.stderr.trim()}`);
+    const section = feedbackMessage(doc.display, diff.stdout, doc.duringShell);
     doc.snapshot = content;
-    onEdit(feedbackMessage(doc.display, diff.stdout, duringShell), doc.display);
+    doc.duringShell = false;
+    return section;
+  }
+
+  /** The net change of each file (of `only`, when given) since the agent last saw it, in one message; undefined when nothing changed. */
+  function take(only?: string): string | undefined {
+    const sections: string[] = [];
+    for (const [path, doc] of watched) {
+      if ((only !== undefined && path !== only) || paused(path)) continue;
+      const content = deps.readFile(path);
+      if (content === undefined) continue;
+      if (content === doc.snapshot) {
+        doc.duringShell = false;
+        continue;
+      }
+      try {
+        sections.push(report(doc, content));
+      } catch (error) {
+        doc.snapshot = content;
+        doc.duringShell = false;
+        doc.onError(error as Error);
+      }
+    }
+    return sections.length > 0 ? sections.join("\n\n") : undefined;
   }
 
   function onChange(path: string): void {
@@ -160,10 +206,10 @@ export function createEditSession(deps: EditDeps, onEdit: (message: string, disp
     if (!doc || paused(path)) return;
     const content = deps.readFile(path);
     if (content === undefined || content === doc.snapshot) return;
-    report(path, doc, doc.snapshot, content, false);
+    events.changed(doc.display);
   }
 
-  /** A call ended: the version the agent saw is what is on disk now, except that a shell command's window reports what changed in it. */
+  /** A call ended: a write or edit's result is the version the agent saw; a shell command's window joins what waits to be reported. */
   function release(id: string): void {
     const call = active.get(id);
     if (!call) return;
@@ -172,23 +218,24 @@ export function createEditSession(deps: EditDeps, onEdit: (message: string, disp
       if (call.path !== undefined && call.path !== path) continue;
       const content = deps.readFile(path);
       if (content === undefined) continue;
+      if (call.path !== undefined) {
+        doc.snapshot = content;
+        doc.duringShell = false;
+        continue;
+      }
       // Measured against what the agent last saw, so a save the watcher had not seen yet still counts, and a
-      // second shell command ending on the same change reports nothing again. The label says whether the change
-      // came while the command ran.
+      // second shell command ending on the same change adds nothing. The label says whether the change came while
+      // the command ran.
+      if (content === doc.snapshot) continue;
       const began = call.before.get(path);
-      if (call.path === undefined && content !== doc.snapshot) {
-        try {
-          report(path, doc, doc.snapshot, content, began === undefined || content !== began);
-        } catch (error) {
-          doc.snapshot = content;
-          doc.onError(error as Error);
-        }
-      } else doc.snapshot = content;
+      if (began === undefined || content !== began) doc.duringShell = true;
+      events.changed(doc.display);
     }
   }
 
   return {
     open,
+    take,
     /** Starts watching a document; a document already watched keeps the version the agent saw. */
     watch(path: string, display: string, content: string, onError: (error: Error) => void): void {
       const known = watched.get(path);
@@ -203,10 +250,13 @@ export function createEditSession(deps: EditDeps, onEdit: (message: string, disp
           onError(error as Error);
         }
       });
-      watched.set(path, { display, snapshot: content, stop, onError });
+      watched.set(path, { display, snapshot: content, duringShell: false, stop, onError });
     },
     has: (path: string): boolean => watched.has(path),
-    /** The tool call `id` is about to write `path` (or run a shell command, when `path` is undefined). */
+    /**
+     * The tool call `id` is about to write `path` (or run a shell command, when `path` is undefined). Before a write
+     * or edit replaces the version the agent saw, the user's unreported change to that file goes out at once.
+     */
     willWrite(id: string, path: string | undefined): void {
       const before = new Map<string, string>();
       if (path === undefined) {
@@ -214,6 +264,9 @@ export function createEditSession(deps: EditDeps, onEdit: (message: string, disp
           const content = deps.readFile(watchedPath);
           if (content !== undefined) before.set(watchedPath, content);
         }
+      } else if (watched.has(path)) {
+        const message = take(path);
+        if (message) events.urgent(message);
       }
       active.set(id, { path, before });
     },

@@ -30,6 +30,8 @@ export function setup(options: Options = {}) {
   const installed = options.installed ?? [];
   let ids = 0;
   const served = { count: 0 };
+  /** Timers the extension scheduled and that are still due; `settle` runs them, as if the time passed. */
+  const timers = new Set<() => void>();
   const base = defaultDeps();
   const deps: Deps = {
     ...base,
@@ -53,6 +55,10 @@ export function setup(options: Options = {}) {
     },
     newId: () => `doc-${++ids}`,
     now: () => state.now,
+    schedule: (run) => {
+      timers.add(run);
+      return () => timers.delete(run);
+    },
   };
   const { pi, sent, emitted, on, bus, tools, fire } = fakePi();
   const show = install(pi, deps);
@@ -63,8 +69,24 @@ export function setup(options: Options = {}) {
     writeFileSync(join(root, name), content);
     watchers.get(join(root, name))?.();
   };
+  const settle = () => {
+    for (const run of [...timers]) {
+      timers.delete(run);
+      run();
+    }
+  };
+  /** A run starts, as a prompt starts it: returns the message the extension adds to it, if any. */
+  const startRun = async () =>
+    (
+      (await fire("before_agent_start", { messageType: "user", prompt: "next" }, ctx)) as
+        | { message?: { content: string } }
+        | undefined
+    )?.message?.content;
   return {
     root,
+    timers,
+    settle,
+    startRun,
     show,
     served,
     tools,
