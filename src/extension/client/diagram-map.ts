@@ -115,7 +115,8 @@ function namesOf(svg: Element): Map<string, string> {
 /**
  * Makes every target's text unique within the diagram, so one quote names one element. Only a text that more than one
  * target has changes: nodes and groups add their id (`Check (B)`), edges their endpoint ids (`Check → Done (A → C)`),
- * and what is still alike is numbered in drawing order (`#1`, `#2`).
+ * and what is still alike is numbered in drawing order (`#1`, `#2`), skipping a number whose text another target
+ * already has (a label written as `B #1`).
  */
 function disambiguated(targets: (DiagramTarget & { id?: string })[]): DiagramTarget[] {
   const count = (list: DiagramTarget[]): Map<string, number> => {
@@ -138,12 +139,17 @@ function disambiguated(targets: (DiagramTarget & { id?: string })[]): DiagramTar
       : target;
   });
   const second = count(named);
+  const keyOf = (target: DiagramTarget): string => `${target.kind}:${target.text}`;
+  const taken = new Set(named.filter((target) => (second.get(keyOf(target)) ?? 0) < 2).map(keyOf));
   const next = new Map<string, number>();
   return named.map((target) => {
-    const key = `${target.kind}:${target.text}`;
+    const key = keyOf(target);
     if ((second.get(key) ?? 0) < 2) return target;
-    const ordinal = (next.get(key) ?? 0) + 1;
+    let ordinal = next.get(key) ?? 0;
+    do ordinal += 1;
+    while (taken.has(`${key} #${ordinal}`));
     next.set(key, ordinal);
+    taken.add(`${key} #${ordinal}`);
     return { ...target, text: `${target.text} #${ordinal}` };
   });
 }

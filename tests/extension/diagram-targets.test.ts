@@ -92,6 +92,15 @@ describe("diagramMap: every quote is unique within its diagram", () => {
     expect(targets).toContain("edge: One → One");
     expect(targets).toContain("edge: A → B");
   });
+
+  test("a number never repeats a label that already ends in one", () => {
+    unique(texts('flowchart TD\n A --> B\n A --> B\n A --> C["B #1"]'));
+    unique(texts('flowchart TD\n A --> B\n A --> B\n A --> C["B #2"]'));
+  });
+
+  test("an id suffix and a number never repeat a label that already reads that way", () => {
+    unique(texts('flowchart TD\n A[Check] --> B[Check]\n C["Check (A)"]\n D["Check (A) #1"]'));
+  });
 });
 
 describe("diagramMap: a state diagram's [*] is start or end, scoped when there are several", () => {
