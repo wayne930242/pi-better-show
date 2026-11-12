@@ -1,4 +1,4 @@
-# pi-better-show 參考 <!-- source: docs/reference.md @ 21d825c -->
+# pi-better-show 參考 <!-- source: docs/reference.md @ 7299eb2 -->
 
 [README](../README.zh-TW.md) 背後的完整契約：每一種區塊、core、server、元素與 React 的 API，以及 `show_doc` extension 的細節。請找到需要的那一節，其餘可以略過。
 
@@ -687,7 +687,7 @@ pi install npm:pi-better-show
 sequenceDiagram
   participant A as Agent
   participant E as show_doc
-  participant S as 頁面伺服器<br/>loopback，隨機 token
+  participant S as 頁面伺服器
   participant B as 瀏覽器頁面
   A->>E: show_doc(paths, reason, "page")
   E->>S: 只啟動一次，放行這些檔案
@@ -749,7 +749,7 @@ Markdown 頁面是文章加區塊：文章是 Markdown，原始 HTML 保留為�
 <!-- Diagram: src/extension/client/diagram-map.ts (diagramMap, namesOf, disambiguated, diagramQuote), src/elements/display.ts (pbs-diagram-target), src/extension/client/page.ts, src/extension/client/feedback.ts (feedbackAnswer), src/core/answer.ts (feedbackText). -->
 
 ```mermaid
-flowchart LR
+flowchart TD
   svg["圖的 SVG<br/>來自 /diagram.svg"] -->|"fetchDiagramMap"| map["目標：節點、邊、<br/>群組，連同它們的形狀"]
   map -->|"圖上的按鈕"| press["點擊，或 Tab 後<br/>按 Enter 或空白鍵"]
   press -->|"pbs-diagram-target"| quote["diagramQuote：<br/>[Diagram 2, type] kind: text"]
@@ -797,7 +797,7 @@ flowchart TD
   held -->|"你的下一個 prompt"| start["這一輪開始時帶著<br/>每個變動檔案的淨 diff"]
   idle -->|"否，正在工作"| quiet["3 秒沒有儲存"]
   quiet --> steer["steer 進進行中的一輪"]
-  agentwrite["agent 即將寫入<br/>你改過的檔案"] --> first["你的變更先送出，<br/>立刻"]
+  idle -->|"否，且 agent 即將<br/>寫入你改過的檔案"| first["你的變更先送出，<br/>立刻"]
 ```
 
 <details>
