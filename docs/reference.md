@@ -751,8 +751,8 @@ A diagram element is quoted in the diagram's own words, so the agent can find it
 ```mermaid
 flowchart LR
   svg["Diagram SVG<br/>from /diagram.svg"] -->|"fetchDiagramMap"| map["Targets: node, edge,<br/>group, with their shapes"]
-  map -->|"buttons over the image"| click["Click, or Tab and<br/>Enter or Space"]
-  click -->|"pbs-diagram-target"| quote["diagramQuote:<br/>[Diagram 2, type] kind: text"]
+  map -->|"buttons over the image"| press["Click, or Tab and<br/>Enter or Space"]
+  press -->|"pbs-diagram-target"| quote["diagramQuote:<br/>[Diagram 2, type] kind: text"]
   quote --> panel["Feedback panel<br/>one entry per element"]
   panel -->|"Send: quote and comment"| msg["encodeAnswer:<br/>> quote, then the comment"]
 ```
