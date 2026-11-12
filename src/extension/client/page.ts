@@ -1,5 +1,7 @@
 import type { Answer } from "../../core/types.ts";
 import "../../elements/index.ts";
+import { configure } from "../../elements/index.ts";
+import { diagramQuote, fetchDiagramMap } from "./diagram-map.ts";
 import { mountFeedback, wordsFor } from "./feedback.ts";
 import { type AnswerReply, configureElements, newAnswerId, postAnswerToServer, serverPrefix } from "./host-config.ts";
 
@@ -10,6 +12,8 @@ import { type AnswerReply, configureElements, newAnswerId, postAnswerToServer, s
 
 const prefix = serverPrefix();
 configureElements(prefix);
+// A diagram's nodes and edges can be commented on, not only selected text.
+configure({ diagramMap: fetchDiagramMap });
 
 const postAnswer = (answer: Answer): Promise<AnswerReply> =>
   postAnswerToServer(`${prefix}/answer`, { answerId: newAnswerId(), answer, page: location.pathname });
@@ -43,15 +47,21 @@ document.addEventListener("pbs-answer", (event) => {
   );
 });
 
-mountFeedback({
+const feedback = mountFeedback({
   page: document.title || location.pathname.split("/").pop() || "",
   words,
+  diagrams: true,
   storage: sessionStorage,
   storageKey: `pbs-feedback:${location.pathname}`,
   send: async (answer) => {
     const reply = await postAnswer(answer);
     if (!reply.accepted) throw new Error(reply.reason ?? "refused");
   },
+});
+
+document.addEventListener("pbs-diagram-target", (event) => {
+  const target = (event as CustomEvent<{ kind: string; text: string }>).detail;
+  if (event.target instanceof Element) feedback.comment(diagramQuote(event.target, target));
 });
 
 new EventSource(`${prefix}/events?page=${encodeURIComponent(location.pathname)}`).addEventListener("reload", () =>

@@ -50,8 +50,8 @@ If you use `pi-herdr-doc-review`, uninstall it first (`pi uninstall npm:pi-herdr
   Markdown renders with its blocks; `.html`, `.tsx`, and `.jsx` run in a sandboxed frame; images show as they are.
 - `view: "edit"` (the default) opens the file in your editor.
   Your saves reach the agent as one net diff per file, without starting a turn.
-- Select any passage on a page to comment on it.
-  The feedback panel sends your comments and an overall note in one message.
+- Select any passage on a page to comment on it, or click a node or an edge in a flowchart or state diagram.
+  The feedback panel sends your comments and an overall note in one message; a diagram comment names the diagram and the element, such as `[Diagram 2, stateDiagram-v2] edge: Paid → Refunded "money back"`.
 - Open pages reload when the agent edits the file.
 
 ![The feedback panel with a comment on a selected passage](https://raw.githubusercontent.com/wayne930242/pi-better-show/main/docs/images/feedback.png)

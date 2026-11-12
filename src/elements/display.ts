@@ -1,7 +1,7 @@
 import type { AlertData, CardsData, DiffData, MermaidData, StatsData, StepStatus, StepsData } from "../core/types.ts";
 import { define, PbsElement } from "./base.ts";
-import { configuration } from "./config.ts";
-import { h, inlineNodes, prose } from "./dom.ts";
+import { configuration, type DiagramMap, type DiagramTarget } from "./config.ts";
+import { h, inlineNodes, prose, svg } from "./dom.ts";
 import type { Strings } from "./strings.ts";
 
 /** The blocks that only show: callout, cards, steps, stats, diff, diagram. */
@@ -45,6 +45,19 @@ const displayCss = `
 
 .diagram { margin: 0; text-align: center; overflow: auto; }
 .diagram img { display: block; max-width: 100%; height: auto; margin: 0 auto; }
+.diagram .frame { position: relative; width: fit-content; max-width: 100%; margin: 0 auto; }
+.diagram .targets { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.targets .hit { cursor: pointer; outline: none; }
+.targets .hit > * {
+  fill: transparent; stroke: transparent; stroke-width: 1px; vector-effect: non-scaling-stroke; pointer-events: all;
+}
+.targets .hit > polyline { fill: none; stroke-width: 8px; stroke-linecap: round; stroke-linejoin: round; }
+.targets .hit:hover > *, .targets .hit:focus-visible > * {
+  fill: color-mix(in srgb, var(--_accent) 14%, transparent);
+  stroke: color-mix(in srgb, var(--_accent) 60%, transparent);
+  stroke-width: 2px;
+}
+.targets .hit:hover > polyline, .targets .hit:focus-visible > polyline { fill: none; stroke-width: 8px; }
 .diagram details { margin-top: 0.6rem; text-align: left; }
 .diagram summary { cursor: pointer; color: var(--_muted); font-size: 0.9em; }
 .diagram pre { margin-top: 0.4rem; padding: var(--_pad); background: var(--_surface); border-radius: var(--_radius); }
@@ -258,11 +271,72 @@ export class PbsDiagram extends PbsElement<MermaidData> {
         this.#failed = url;
         this.refresh();
       });
-      figure.append(image, h("details", { part: "source" }, h("summary", null, this.t("diagramSource")), source));
+      const frame = h("div", { class: "frame" }, image);
+      this.#addTargets(frame, url);
+      figure.append(frame, h("details", { part: "source" }, h("summary", null, this.t("diagramSource")), source));
     } else {
       figure.append(h("p", { part: "note", class: "muted note" }, this.t("diagramFallback")), source);
     }
     return figure;
+  }
+
+  /**
+   * When the host can read the drawing (`diagramMap`), lays its nodes and edges over the image as buttons: a click, or
+   * Enter or Space on a focused one, dispatches `pbs-diagram-target` with the element in the diagram's own words.
+   * The overlay arrives after the image; a diagram the host cannot read stays a plain image.
+   */
+  #addTargets(frame: HTMLElement, url: string): void {
+    const read = configuration().diagramMap;
+    if (!read) return;
+    read(url).then(
+      (map) => {
+        // A redraw replaced this frame while the map was loading.
+        if (map && frame.isConnected) frame.append(this.#overlay(map));
+      },
+      (error: unknown) => console.warn("pbs-diagram: the diagram's elements cannot be commented on:", error),
+    );
+  }
+
+  #overlay(map: DiagramMap): SVGElement {
+    const words: Record<DiagramTarget["kind"], string> = {
+      node: this.t("diagramNode"),
+      edge: this.t("diagramEdge"),
+      group: this.t("diagramGroup"),
+    };
+    const pick = (target: DiagramTarget): void => {
+      this.dispatchEvent(
+        new CustomEvent("pbs-diagram-target", {
+          bubbles: true,
+          composed: true,
+          detail: { kind: target.kind, text: target.text },
+        }),
+      );
+    };
+    const hits = map.targets.map((target) => {
+      const hit = svg(
+        "g",
+        {
+          class: "hit",
+          role: "button",
+          tabindex: 0,
+          "data-kind": target.kind,
+          "aria-label": this.t("diagramComment", { kind: words[target.kind], text: target.text }),
+        },
+        ...target.shapes.map((shape) => svg(shape.tag, shape.attrs)),
+      );
+      hit.addEventListener("click", () => pick(target));
+      hit.addEventListener("keydown", (event) => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        event.preventDefault();
+        pick(target);
+      });
+      return hit;
+    });
+    return svg(
+      "svg",
+      { class: "targets", viewBox: map.viewBox, role: "group", "aria-label": this.t("diagram") },
+      ...hits,
+    );
   }
 }
 

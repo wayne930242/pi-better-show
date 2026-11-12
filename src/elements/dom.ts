@@ -29,6 +29,19 @@ export function h(tag: string, props?: Props | null, ...children: Child[]): HTML
   return node;
 }
 
+const SVG_NS = "http://www.w3.org/2000/svg";
+
+/** An SVG element built from attribute values only (geometry, classes, labels), never from markup. */
+export function svg(tag: string, props?: Props | null, ...children: (SVGElement | null)[]): SVGElement {
+  const node = document.createElementNS(SVG_NS, tag);
+  for (const [name, value] of Object.entries(props ?? {})) {
+    if (value === undefined || value === null || value === false) continue;
+    node.setAttribute(name, value === true ? "" : String(value));
+  }
+  for (const child of children) if (child) node.append(child);
+  return node;
+}
+
 export function append(parent: ParentNode, children: Child[]): void {
   for (const child of children) {
     if (child === null || child === undefined || child === false) continue;

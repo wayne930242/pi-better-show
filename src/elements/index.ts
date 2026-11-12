@@ -16,7 +16,7 @@ import { defineTree } from "./tree.ts";
 export type { AnsweredFields, BlockRef, Density } from "./base.ts";
 export { PbsElement } from "./base.ts";
 export { PbsChecklist, PbsOptions, PbsSuggest } from "./choice.ts";
-export type { Configuration, Scheme } from "./config.ts";
+export type { Configuration, DiagramMap, DiagramShape, DiagramTarget, Scheme } from "./config.ts";
 export { configure, resetConfiguration } from "./config.ts";
 export { PbsCallout, PbsCards, PbsDiagram, PbsDiff, PbsStats, PbsSteps } from "./display.ts";
 export { PbsForm } from "./form.ts";

@@ -3,11 +3,36 @@ import type { Locale, Strings } from "./strings.ts";
 /** Which colour scheme a diagram is drawn for. */
 export type Scheme = "light" | "dark";
 
+/** A shape of a diagram element's hit area, in the diagram's own coordinates; only geometry attributes are carried. */
+export interface DiagramShape {
+  tag: "rect" | "circle" | "ellipse" | "polygon" | "polyline" | "path";
+  attrs: Record<string, string>;
+}
+
+/** Something in a diagram a reader can point at, in the diagram's own words (`text`: a label, or `from → to "label"`). */
+export interface DiagramTarget {
+  kind: "node" | "edge" | "group";
+  text: string;
+  shapes: DiagramShape[];
+}
+
+/** The pointable parts of one drawn diagram; `viewBox` is the drawing's, so shapes overlay the image exactly. */
+export interface DiagramMap {
+  viewBox: string;
+  targets: DiagramTarget[];
+}
+
 export interface Configuration {
   /** Overrides for single words, per locale. */
   strings: Partial<Record<Locale, Partial<Strings>>>;
   /** The image URL of a diagram, which the host serves (`mermaidSvg` from `pi-better-show/server`); `undefined` shows the source. */
   diagramUrl: ((source: string, scheme: Scheme) => string | undefined) | undefined;
+  /**
+   * Reads the pointable nodes and edges of the diagram image at the URL `diagramUrl` gave (the host fetches and parses
+   * it: elements never parse markup). When set, a diagram's elements become buttons over the image that dispatch
+   * `pbs-diagram-target` with `{kind, text}`. `undefined` leaves the diagram a plain image.
+   */
+  diagramMap: ((url: string) => Promise<DiagramMap | undefined>) | undefined;
   /** Turns a review item's `image` into a URL the page may load; `undefined` shows a placeholder. */
   imageUrl: (ref: string) => string | undefined;
   /** Turns a review item's `page` into a URL for a sandboxed frame; `undefined` shows the reference as text. */
@@ -22,7 +47,7 @@ let current: Configuration = initial();
 const listeners = new Set<() => void>();
 
 function initial(): Configuration {
-  return { strings: {}, diagramUrl: undefined, imageUrl: defaultImageUrl, pageUrl: undefined };
+  return { strings: {}, diagramUrl: undefined, diagramMap: undefined, imageUrl: defaultImageUrl, pageUrl: undefined };
 }
 
 export const configuration = (): Configuration => current;
@@ -45,6 +70,7 @@ export function configure(options: Partial<Configuration>): void {
   current = {
     strings,
     diagramUrl: "diagramUrl" in options ? options.diagramUrl : current.diagramUrl,
+    diagramMap: "diagramMap" in options ? options.diagramMap : current.diagramMap,
     imageUrl: "imageUrl" in options ? (options.imageUrl ?? defaultImageUrl) : current.imageUrl,
     pageUrl: "pageUrl" in options ? options.pageUrl : current.pageUrl,
   };

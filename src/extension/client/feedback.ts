@@ -10,6 +10,8 @@ export interface FeedbackWords {
   comment: string;
   heading: string;
   hint: string;
+  /** The hint on a page whose diagrams can be commented on. */
+  hintDiagram: string;
   overall: string;
   send: string;
   sending: string;
@@ -25,6 +27,7 @@ const ZH: FeedbackWords = {
   comment: "留言",
   heading: "給 agent 的回饋",
   hint: "選取頁面上的文字可以針對那段留言。",
+  hintDiagram: "選取頁面上的文字，或點圖表裡的節點與連線，可以針對它留言。",
   overall: "整體意見",
   send: "送給 agent",
   sending: "傳送中…",
@@ -39,6 +42,7 @@ const EN: FeedbackWords = {
   comment: "Comment",
   heading: "Feedback for the agent",
   hint: "Select text on the page to comment on it.",
+  hintDiagram: "Select text on the page, or click a node or edge in a diagram, to comment on it.",
   overall: "Overall",
   send: "Send to agent",
   sending: "Sending…",
@@ -71,6 +75,8 @@ export interface FeedbackOptions {
    * and passes the frame's selection to `offer` instead.
    */
   watchDocument?: boolean;
+  /** Whether the page's diagrams can be commented on (the hint says so); a host calls `comment` for them. */
+  diagrams?: boolean;
 }
 
 /** A passage to comment on, and where the Add button goes (viewport coordinates of the panel's document). */
@@ -98,6 +104,11 @@ const make = <K extends keyof HTMLElementTagNameMap>(
 export function mountFeedback(options: FeedbackOptions): {
   /** Offers a passage to comment on, or withdraws the offer with no text or `undefined`. */
   offer: (passage: Offered | undefined) => void;
+  /**
+   * Adds `quote` to the panel as a commented target at once and opens the panel on its comment box; for what cannot be
+   * selected as text (a diagram's node or edge). A target already in the panel is not added twice, only focused.
+   */
+  comment: (quote: string) => void;
   destroy: () => void;
 } {
   const { words, storage, storageKey } = options;
@@ -122,7 +133,7 @@ export function mountFeedback(options: FeedbackOptions): {
   const panel = make("section", { class: "pbs-fb-panel", hidden: true });
   panel.setAttribute("aria-label", words.heading);
   const heading = make("h2", { textContent: words.heading });
-  const hint = make("p", { class: "pbs-fb-hint", textContent: words.hint });
+  const hint = make("p", { class: "pbs-fb-hint", textContent: options.diagrams ? words.hintDiagram : words.hint });
   const list = make("div", { class: "pbs-fb-list" });
   const overallBox = make("textarea", { class: "pbs-fb-overall", rows: 3, value: overall });
   overallBox.setAttribute("aria-label", words.overall);
@@ -192,18 +203,28 @@ export function mountFeedback(options: FeedbackOptions): {
   const onSelect = (): void => offer(selected());
   // The button is pressed before the click lands, which would collapse the selection; keep what was picked.
   add.addEventListener("mousedown", (event) => event.preventDefault());
+  const open = (index: number): void => {
+    panel.hidden = false;
+    list.querySelectorAll("textarea").item(index)?.focus();
+  };
+  const comment = (quote: string): void => {
+    const known = items.findIndex((item) => item.quote === quote);
+    if (known === -1) {
+      items.push({ quote, comment: "" });
+      save();
+      draw();
+    }
+    open(known === -1 ? items.length - 1 : known);
+  };
   add.addEventListener("click", () => {
-    if (pending) items.push({ quote: pending, comment: "" });
+    const quote = pending;
     pending = "";
     add.hidden = true;
     getSelection()?.removeAllRanges();
+    if (quote) items.push({ quote, comment: "" });
     save();
     draw();
-    panel.hidden = false;
-    list
-      .querySelectorAll("textarea")
-      .item(items.length - 1)
-      ?.focus();
+    open(items.length - 1);
   });
   sendButton.addEventListener("click", () => {
     if (items.length === 0 && !overall.trim()) {
@@ -237,6 +258,7 @@ export function mountFeedback(options: FeedbackOptions): {
   document.body.append(root);
   return {
     offer,
+    comment,
     destroy: () => {
       if (watch) document.removeEventListener("selectionchange", onSelect);
       root.remove();

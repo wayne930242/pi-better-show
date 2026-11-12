@@ -271,3 +271,41 @@ describe("the feedback panel", () => {
     panel.destroy();
   });
 });
+
+describe("feedback panel: commenting on a diagram element", () => {
+  const open = () => {
+    const store = new Map<string, string>();
+    const storage = {
+      getItem: (key: string) => store.get(key) ?? null,
+      setItem: (key: string, value: string) => void store.set(key, value),
+      removeItem: (key: string) => void store.delete(key),
+    };
+    const sent: unknown[] = [];
+    const panel = mountFeedback({
+      page: "Plan",
+      words: wordsFor("en"),
+      storage,
+      storageKey: "diagram",
+      send: async (answer) => void sent.push(answer),
+    });
+    return { panel, sent };
+  };
+
+  test("adds the target as a quote at once, opens the panel on its comment box, and keeps one entry per target", async () => {
+    const { panel, sent } = open();
+    panel.comment('[Diagram 1, stateDiagram-v2] edge: Paid → Refunded "money back"');
+    panel.comment('[Diagram 1, stateDiagram-v2] edge: Paid → Refunded "money back"');
+    expect(document.querySelectorAll(".pbs-fb-item")).toHaveLength(1);
+    expect(document.querySelector<HTMLElement>(".pbs-fb-panel")?.hidden).toBe(false);
+    const box = document.querySelector<HTMLTextAreaElement>(".pbs-fb-item textarea");
+    if (!box) throw new Error("no comment box");
+    box.value = "a refund must go through the manager";
+    box.dispatchEvent(new Event("input", { bubbles: true }));
+    document.querySelector<HTMLButtonElement>(".pbs-fb-send")?.click();
+    await Bun.sleep(10);
+    expect(encodeAnswer(sent[0] as Parameters<typeof encodeAnswer>[0])).toBe(
+      'User feedback on the page "Plan":\n\n> [Diagram 1, stateDiagram-v2] edge: Paid → Refunded "money back"\na refund must go through the manager',
+    );
+    panel.destroy();
+  });
+});

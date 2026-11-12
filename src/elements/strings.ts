@@ -37,6 +37,10 @@ export interface Strings {
   diagram: string;
   diagramSource: string;
   diagramFallback: string;
+  diagramComment: string;
+  diagramNode: string;
+  diagramEdge: string;
+  diagramGroup: string;
   diff: string;
   table: string;
   mindmap: string;
@@ -90,6 +94,10 @@ export const STRINGS: Record<Locale, Strings> = {
     diagram: "Diagram",
     diagramSource: "Source",
     diagramFallback: "The diagram is not available here; its source is shown instead.",
+    diagramComment: "Comment on {kind}: {text}",
+    diagramNode: "node",
+    diagramEdge: "edge",
+    diagramGroup: "group",
     diff: "Diff",
     table: "Table",
     mindmap: "Mind map",
@@ -140,6 +148,10 @@ export const STRINGS: Record<Locale, Strings> = {
     diagram: "圖表",
     diagramSource: "原始碼",
     diagramFallback: "這裡無法顯示圖表，改為顯示原始碼。",
+    diagramComment: "針對{kind}留言：{text}",
+    diagramNode: "節點",
+    diagramEdge: "連線",
+    diagramGroup: "群組",
     diff: "差異",
     table: "表格",
     mindmap: "心智圖",

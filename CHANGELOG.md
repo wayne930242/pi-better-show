@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## 0.7.0 - 2026-11-12
+
+Minor bump: `Configuration` has a new optional `diagramMap` hook and `FeedbackWords` a new `hintDiagram` word (hosts that build their own words add it); the `feedback` answer's shape is unchanged.
+
+- Comment on a diagram, not only on selected text. On a Markdown page, a node, an edge (its line or its label box), or a subgraph title in a flowchart or state diagram is a button over the image: click it, or Tab to it and press Enter or Space, and it goes into the feedback panel as a quote. The agent reads it in the diagram's own words: `> [Diagram 2, stateDiagram-v2] edge: Paid → Refunded "money back"` (the diagram's position on the page and its type, then `node: <label>`, `edge: <from> → <to>` plus the edge's label in quotes, or `group: <title>`). Quotes from selected text are unchanged. The same element is not added twice. Hover and focus tint the element without moving anything.
+- Elements: `configure({ diagramMap })` and the `DiagramMap`, `DiagramTarget`, and `DiagramShape` types; `pbs-diagram` dispatches `pbs-diagram-target` with `{kind, text}`. Elements still parse no markup: the host reads the drawing (the extension's page fetches the diagram SVG and maps it). Other diagram types stay plain images. Pages in a frame (`.html`, `.tsx`) comment on selected text only.
+
 ## 0.6.1 - 2026-11-12
 
 Windows support for opening pages and documents; macOS and Linux behave as before.
