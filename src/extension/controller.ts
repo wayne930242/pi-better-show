@@ -38,6 +38,7 @@ import {
 } from "./edit.ts";
 import { createAllowList, HTML_FILE, IMAGE_FILE, MARKDOWN_FILE, REACT_FILE } from "./files.ts";
 import type { PageServer, PageServerOptions } from "./server.ts";
+import { onPath, urlOpener } from "./system.ts";
 
 export const MESSAGE_TYPE = "better-show";
 export const MINI_SDD_FILE = /(^|\/)docs\/specs\/[^/]+\/(decision|spec|design|verification)\.md$/;
@@ -49,8 +50,8 @@ export const MAX_DOCUMENTS = 32;
 export const MAX_REMEMBERED_ANSWERS = 256;
 /** How long a page just sent to the browser counts as open before its tab connects. */
 export const PAGE_OPEN_WAIT_MS = 15_000;
-/** The command that opens a URL in the default browser. */
-export const OPENER = process.platform === "darwin" ? "open" : "xdg-open";
+/** The command that opens a URL in the default browser (system.ts: `rundll32` on Windows, by absolute path). */
+export const OPENER = urlOpener(process.platform)[0];
 
 export type View = "page" | "edit";
 
@@ -79,7 +80,14 @@ export const createPageServer = async (options: PageServerOptions): Promise<Page
 
 export const defaultDeps = (): Deps => ({
   editor: process.env[EDITOR_ENV],
-  onPath: (command) => spawnSync("sh", ["-c", 'command -v "$1"', "sh", command], { stdio: "ignore" }).status === 0,
+  onPath: (command) =>
+    onPath(
+      command,
+      process.platform,
+      process.env,
+      undefined,
+      (name) => spawnSync("sh", ["-c", 'command -v "$1"', "sh", name], { stdio: "ignore" }).status === 0,
+    ),
   launch: defaultLaunch,
   run: defaultRun,
   platform: process.platform,
@@ -100,8 +108,9 @@ export const defaultDeps = (): Deps => ({
   },
   servePages: createPageServer,
   openUrl: (url) => {
-    const opened = defaultRun(OPENER, [url]);
-    if (opened.status !== 0) throw new Error(`${OPENER} failed: ${(opened.stderr || opened.stdout).trim()}`);
+    const [opener, args] = urlOpener(process.platform);
+    const opened = defaultRun(opener, args(url));
+    if (opened.status !== 0) throw new Error(`${opener} failed: ${(opened.stderr || opened.stdout).trim()}`);
   },
   realpath: (path) => (existsSync(path) ? realpathSync(path) : path),
   newId: randomUUID,

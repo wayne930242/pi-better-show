@@ -9,6 +9,7 @@ import {
   DOCUMENTS_REQUEST_EVENT,
 } from "../../src/extension/contract.ts";
 import { createBetterShow, defaultDeps, PAGE_OPEN_WAIT_MS } from "../../src/extension/controller.ts";
+import { windowsTextEditor } from "../../src/extension/system.ts";
 import { setup, shows } from "./fixture.ts";
 import { fakePi, http, postJson, tree, until, waitForStream } from "./helpers.ts";
 
@@ -358,6 +359,11 @@ describe("show_doc edit view", () => {
     const linux = setup({ files: FILES, installed: ["xdg-open"], platform: "linux" });
     await linux.show.show(linux.root, ["n.md"], "r");
     expect(linux.ran).toEqual([["xdg-open", [linux.path("n.md")]]]);
+
+    const windows = setup({ files: FILES, platform: "win32" });
+    await windows.show.show(windows.root, ["n.md"], "r");
+    expect(windows.launched).toEqual([[windowsTextEditor(), [windows.path("n.md")]]]);
+    expect(windows.ran).toHaveLength(0);
   });
 
   test("says so when no editor can be opened", async () => {

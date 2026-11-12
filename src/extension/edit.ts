@@ -1,5 +1,6 @@
 import { spawn, spawnSync } from "node:child_process";
 import { join } from "node:path";
+import { gitDiffHunks, windowsTextEditor } from "./system.ts";
 
 /** Edit mode (D7): the user's own editor, no terminal pane. Saves are noticed by watching the file. */
 
@@ -145,6 +146,12 @@ export function createEditSession(deps: EditDeps, events: EditEvents) {
       await deps.launch("code", paths);
       return "VS Code";
     }
+    if (deps.platform === "win32") {
+      // Notepad, by absolute path, is on every Windows machine; it opens one file per window.
+      const notepad = windowsTextEditor();
+      for (const path of paths) await deps.launch(notepad, [path]);
+      return "Notepad";
+    }
     const [command, args] =
       deps.platform === "darwin" ? (["open", ["-t", ...paths]] as const) : (["xdg-open", paths] as const);
     if (!deps.onPath(command)) throw new Error(`edit mode needs ${EDITOR_ENV}, VS Code (code), or ${command} on PATH`);
@@ -160,6 +167,22 @@ export function createEditSession(deps: EditDeps, events: EditEvents) {
     return "the system text editor";
   }
 
+  /**
+   * Zero-context hunks from `before` to `after`. `diff` when it is on PATH; on Windows without it (Git for Windows keeps `diff` out of the
+   * PATH it adds), `git diff --no-index`, whose header lines are taken out. Both exit 1 when the files differ.
+   */
+  function diffOf(before: string, after: string, display: string): string {
+    if (deps.platform === "win32" && !deps.onPath("diff")) {
+      const git = deps.run("git", ["diff", "--no-index", "--no-color", "--no-ext-diff", "-U0", "--", before, after]);
+      if (git.status !== 0 && git.status !== 1)
+        throw new Error(`git diff failed: ${(git.stderr || git.stdout).trim()}`);
+      return gitDiffHunks(git.stdout);
+    }
+    const diff = deps.run("diff", ["-U0", "--label", `a/${display}`, "--label", `b/${display}`, before, after]);
+    if (diff.status !== 0 && diff.status !== 1) throw new Error(`diff failed: ${diff.stderr.trim()}`);
+    return diff.stdout;
+  }
+
   const paused = (path: string): boolean =>
     [...active.values()].some((call) => call.path === undefined || call.path === path);
 
@@ -171,9 +194,7 @@ export function createEditSession(deps: EditDeps, events: EditEvents) {
     deps.writeFile(before, doc.snapshot);
     // The content read, not the file: a save landing between the read and the diff waits for the next report.
     deps.writeFile(after, content);
-    const diff = deps.run("diff", ["-U0", "--label", `a/${doc.display}`, "--label", `b/${doc.display}`, before, after]);
-    if (diff.status !== 0 && diff.status !== 1) throw new Error(`diff failed: ${diff.stderr.trim()}`);
-    const section = feedbackMessage(doc.display, diff.stdout, doc.duringShell);
+    const section = feedbackMessage(doc.display, diffOf(before, after, doc.display), doc.duringShell);
     doc.snapshot = content;
     doc.duringShell = false;
     return section;

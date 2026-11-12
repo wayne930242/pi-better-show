@@ -4,8 +4,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createEditSession, defaultRun } from "../../src/extension/edit.ts";
 
-/** A session over real files and the real `diff`, with no watcher: tests save the files and take reports by hand. */
-function session() {
+/** A session over real files and the real `diff` (`git diff --no-index` as `win32`), with no watcher: tests save the files and take reports by hand. */
+function session(platform = "darwin") {
   const dir = mkdtempSync(join(tmpdir(), "pbs-edit-"));
   const path = join(dir, "spec.md");
   const other = join(dir, "notes.md");
@@ -21,7 +21,7 @@ function session() {
       onPath: () => false,
       launch: async () => {},
       run: defaultRun,
-      platform: "darwin",
+      platform,
       readFile: (file) => {
         try {
           return readFileSync(file, "utf8");
@@ -70,6 +70,19 @@ function session() {
   };
   return s;
 }
+
+describe("edit session on Windows", () => {
+  test("without diff on PATH, git diff --no-index gives the same report", () => {
+    const mac = session();
+    const win = session("win32");
+    for (const s of [mac, win]) s.save(s.path, "one\ntwo\n");
+    const [a, b] = [mac.take(), win.take()];
+    expect(a).toContain("@@");
+    expect(b).toBe(a);
+    mac.done();
+    win.done();
+  });
+});
 
 describe("edit session coalescing", () => {
   test("many saves of one file report once, as the diff from what the agent saw to the final content", () => {
