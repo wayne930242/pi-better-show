@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+## 0.6.1 - 2026-11-12
+
+Windows support for opening pages and documents; macOS and Linux behave as before.
+
+- Pages open in the default browser through `rundll32 url.dll,FileProtocolHandler`, run by absolute path from `%SystemRoot%\System32` (so a `rundll32` earlier on PATH is never used) with the URL as one argument and no shell, so `&` and `%` in it are passed as written. Before, Windows ran `xdg-open`, which it does not have, and `show_doc` failed.
+- Whether a command is on PATH is answered on Windows by scanning PATH with each `PATHEXT` extension, without `sh`.
+- Edit view on Windows: with neither `PI_BETTER_SHOW_EDITOR` nor VS Code, each file opens in Notepad (absolute path). Without `diff` on PATH (Git for Windows keeps it out of the PATH it adds), the user's edits are diffed with `git diff --no-index`, whose header lines and hunk-header context are taken out, so the agent gets the same hunks as from `diff -U0`.
+
 ## 0.6.0 - 2026-11-11
 
 Minor bump: the exported `Deps` has a new required `schedule(run, ms)` (returns a cancel function); hosts that build their own `Deps` add it, or spread `defaultDeps()`.
