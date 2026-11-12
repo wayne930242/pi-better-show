@@ -56,6 +56,71 @@ describe("diagramMap: what a click on the rendered SVG means, in the diagram's o
   });
 });
 
+describe("diagramMap: every quote is unique within its diagram", () => {
+  const unique = (list: string[]) => expect(new Set(list).size).toBe(list.length);
+
+  test("unique elements keep the plain format", () => {
+    expect(texts(STATE).some((t) => /[(#]/.test(t.replace(/"[^"]*"/g, "")))).toBe(false);
+  });
+
+  test("two nodes with the same label are told apart by their ids, and so are their edges", () => {
+    const targets = texts("flowchart TD\n A[Check] --> B[Check]\n B --> C[Done]\n A --> C");
+    unique(targets);
+    expect(targets).toContain("node: Check (A)");
+    expect(targets).toContain("node: Check (B)");
+    expect(targets).toContain("node: Done");
+    expect(targets).toContain("edge: Check → Done (B → C)");
+    expect(targets).toContain("edge: Check → Done (A → C)");
+    expect(targets).toContain("edge: Check → Check");
+  });
+
+  test("the same edge drawn twice is numbered in drawing order", () => {
+    const targets = texts("flowchart TD\n A -->|retry| B\n A -->|retry| B");
+    unique(targets);
+    expect(targets).toContain('edge: A → B "retry" #1');
+    expect(targets).toContain('edge: A → B "retry" #2');
+    expect(targets).toContain("node: A");
+  });
+
+  test("two subgraphs with the same title", () => {
+    const targets = texts(
+      "flowchart TD\n subgraph S1[One]\n  A\n end\n subgraph S2[One]\n  B\n end\n S1 --> S2\n A --> B",
+    );
+    unique(targets);
+    expect(targets).toContain("group: One (S1)");
+    expect(targets).toContain("group: One (S2)");
+    expect(targets).toContain("edge: One → One");
+    expect(targets).toContain("edge: A → B");
+  });
+});
+
+describe("diagramMap: a state diagram's [*] is start or end, scoped when there are several", () => {
+  const COMPOSITE =
+    "stateDiagram-v2\n [*] --> Active\n state Active {\n  [*] --> Idle\n  Idle --> Busy\n  Busy --> [*]\n }\n Active --> [*]";
+
+  test("inside a composite state: no renderer ids, scoped by the enclosing state", () => {
+    const targets = texts(COMPOSITE);
+    expect(targets.join("\n")).not.toMatch(/_start|_end/);
+    expect(targets).toContain("node: start");
+    expect(targets).toContain("node: end");
+    expect(targets).toContain("node: start (in Active)");
+    expect(targets).toContain("node: end (in Active)");
+    expect(targets).toContain("edge: start → Active");
+    expect(targets).toContain("edge: Active → end");
+    expect(targets).toContain("edge: start (in Active) → Idle");
+    expect(targets).toContain("edge: Busy → end (in Active)");
+    expect(new Set(targets).size).toBe(targets.length);
+  });
+});
+
+describe("diagramMap: labels are read as people wrote them", () => {
+  test("Mermaid entity codes are decoded", () => {
+    const targets = texts('flowchart TD\n A["say #quot;hi#quot; #35;1"] -->|"a #amp; b"| B');
+    expect(targets).toContain('node: say "hi" #1');
+    expect(targets).toContain('edge: say "hi" #1 → B "a & b"');
+  });
+});
+
 describe("pbs-diagram with diagramMap: clicking an element reports its words", () => {
   const mountDiagram = async (source: string, targetEvents: unknown[]) => {
     configure({
@@ -106,6 +171,22 @@ describe("pbs-diagram with diagramMap: clicking an element reports its words", (
     expect(overlay?.getAttribute("viewBox")).toBe(diagramMap(rendered(STATE))?.viewBox ?? "");
     expect(root(el).querySelector("img")?.getAttribute("src")).toBe("/d.svg");
     expect(root(el).querySelectorAll("[style], style").length).toBe(0);
+  });
+
+  test("a hook that throws or returns a non-promise leaves the image drawn", async () => {
+    for (const diagramMapHook of [
+      () => {
+        throw new Error("boom");
+      },
+      () => undefined,
+    ]) {
+      configure({ diagramUrl: () => "/d.svg", diagramMap: diagramMapHook as never });
+      const el = mount("pbs-diagram", { source: STATE });
+      await Bun.sleep(5);
+      expect(root(el).querySelector("img")?.getAttribute("src")).toBe("/d.svg");
+      expect(root(el).querySelector("svg")).toBeNull();
+      cleanup();
+    }
   });
 
   test("without the hook the diagram is only an image", () => {

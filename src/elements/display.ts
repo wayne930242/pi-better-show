@@ -288,13 +288,16 @@ export class PbsDiagram extends PbsElement<MermaidData> {
   #addTargets(frame: HTMLElement, url: string): void {
     const read = configuration().diagramMap;
     if (!read) return;
-    read(url).then(
-      (map) => {
-        // A redraw replaced this frame while the map was loading.
-        if (map && frame.isConnected) frame.append(this.#overlay(map));
-      },
-      (error: unknown) => console.warn("pbs-diagram: the diagram's elements cannot be commented on:", error),
-    );
+    // A host that throws, or answers without a promise, must not break the drawing.
+    Promise.resolve()
+      .then(() => read(url))
+      .then(
+        (map) => {
+          // A redraw replaced this frame while the map was loading.
+          if (map && frame.isConnected) frame.append(this.#overlay(map));
+        },
+        (error: unknown) => console.warn("pbs-diagram: the diagram's elements cannot be commented on:", error),
+      );
   }
 
   #overlay(map: DiagramMap): SVGElement {
