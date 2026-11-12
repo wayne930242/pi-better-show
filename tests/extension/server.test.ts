@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, setDefaultTimeout, test } from "bun:test";
 import { realpathSync, symlinkSync } from "node:fs";
 import { join } from "node:path";
 import { createAllowList } from "../../src/extension/files.ts";
@@ -12,6 +12,10 @@ import {
   RAW_POLICY,
 } from "../../src/extension/server.ts";
 import { http, link, postJson, postRaw, tree, until, waitForStream } from "./helpers.ts";
+
+// A TSX page is built by esbuild, which reads every directory above the page. In a crowded temp directory (a
+// developer machine's holds tens of thousands of entries) one build takes seconds, and a loaded machine more.
+setDefaultTimeout(60_000);
 
 const servers: PageServer[] = [];
 afterEach(() => {

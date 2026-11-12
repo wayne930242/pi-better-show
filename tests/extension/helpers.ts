@@ -1,4 +1,5 @@
-import { mkdirSync, mkdtempSync, realpathSync, symlinkSync, writeFileSync } from "node:fs";
+import { afterAll } from "bun:test";
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { request } from "node:http";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -42,9 +43,17 @@ export const postRaw = (url: string, body: string, headers: Record<string, strin
 export const postJson = (url: string, value: unknown, headers: Record<string, string> = {}): Promise<Reply> =>
   postRaw(url, JSON.stringify(value), headers);
 
-/** A scratch tree of files (relative path to content), at its real path. */
+const trees: string[] = [];
+// A tree outlives its test, so the test file removes them when it ends. Left behind they pile up in the temp
+// directory, and esbuild reads every ancestor of a page's folder, so each TSX build slows with the pile.
+afterAll(() => {
+  for (const root of trees.splice(0)) rmSync(root, { recursive: true, force: true });
+});
+
+/** A scratch tree of files (relative path to content), at its real path; it is removed when the test file ends. */
 export function tree(files: Record<string, string>): string {
   const root = realpathSync(mkdtempSync(join(tmpdir(), "pbs-ext-")));
+  trees.push(root);
   for (const [path, content] of Object.entries(files)) {
     mkdirSync(dirname(join(root, path)), { recursive: true });
     writeFileSync(join(root, path), content);
