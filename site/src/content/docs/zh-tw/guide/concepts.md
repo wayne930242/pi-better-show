@@ -14,11 +14,11 @@ agent 寫帶有 fence 區塊的 Markdown，宿主把它們渲染成互動式控�
 <!-- Diagram: src/extension/tool.ts (show_doc), src/extension/controller.ts (show, decide, deliver), src/core/parse.ts (parse), src/core/answer.ts (encodeAnswer). -->
 
 ```mermaid
-flowchart LR
-  agent["Agent<br/>寫帶區塊的<br/>Markdown"] -->|"show_doc"| host["宿主<br/>把每個區塊<br/>畫成控制項"]
-  host --> reader["你<br/>挑選、填寫、<br/>留言"]
-  reader -->|"答案"| host
-  host -->|"encodeAnswer：<br/>一則訊息"| agent
+flowchart TD
+  agent["Agent<br/>寫帶區塊的 Markdown"] -->|"show_doc"| host["宿主<br/>把每個區塊畫成控制項"]
+  host --> reader["你<br/>挑選、填寫、留言"]
+  reader -->|"答案"| enc["encodeAnswer"]
+  enc -->|"一則訊息"| back["Agent<br/>讀取它"]
 ```
 
 <details>

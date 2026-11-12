@@ -14,11 +14,11 @@ The agent writes Markdown with fenced blocks, a host renders them as interactive
 <!-- Diagram: src/extension/tool.ts (show_doc), src/extension/controller.ts (show, decide, deliver), src/core/parse.ts (parse), src/core/answer.ts (encodeAnswer). -->
 
 ```mermaid
-flowchart LR
-  agent["Agent<br/>writes Markdown<br/>with blocks"] -->|"show_doc"| host["Host<br/>draws each block<br/>as a control"]
-  host --> reader["You<br/>pick, fill in,<br/>comment"]
-  reader -->|"answer"| host
-  host -->|"encodeAnswer:<br/>one message"| agent
+flowchart TD
+  agent["Agent<br/>writes Markdown with blocks"] -->|"show_doc"| host["Host<br/>draws each block as a control"]
+  host --> reader["You<br/>pick, fill in, comment"]
+  reader -->|"answer"| enc["encodeAnswer"]
+  enc -->|"one message"| back["Agent<br/>reads it"]
 ```
 
 <details>

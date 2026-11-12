@@ -179,3 +179,8 @@ mobile-starlight-toc .dropdown > ul > li:first-child > a::before {
 .sl-markdown-content td code {
 	overflow-wrap: anywhere;
 }
+
+/* ...but a name in the first column stays whole: the break-anywhere rule above is for the other columns. */
+.sl-markdown-content table td:first-child code {
+	overflow-wrap: normal;
+}

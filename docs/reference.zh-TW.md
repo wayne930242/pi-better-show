@@ -1,4 +1,4 @@
-# pi-better-show 參考 <!-- source: docs/reference.md @ 4903b34 -->
+# pi-better-show 參考 <!-- source: docs/reference.md @ 21d825c -->
 
 [README](../README.zh-TW.md) 背後的完整契約：每一種區塊、core、server、元素與 React 的 API，以及 `show_doc` extension 的細節。請找到需要的那一節，其餘可以略過。
 
@@ -751,8 +751,8 @@ Markdown 頁面是文章加區塊：文章是 Markdown，原始 HTML 保留為�
 ```mermaid
 flowchart LR
   svg["圖的 SVG<br/>來自 /diagram.svg"] -->|"fetchDiagramMap"| map["目標：節點、邊、<br/>群組，連同它們的形狀"]
-  map -->|"圖上的按鈕"| click["點擊，或 Tab 後<br/>按 Enter 或空白鍵"]
-  click -->|"pbs-diagram-target"| quote["diagramQuote：<br/>[Diagram 2, type] kind: text"]
+  map -->|"圖上的按鈕"| press["點擊，或 Tab 後<br/>按 Enter 或空白鍵"]
+  press -->|"pbs-diagram-target"| quote["diagramQuote：<br/>[Diagram 2, type] kind: text"]
   quote --> panel["意見面板<br/>每個元素一筆"]
   panel -->|"Send：quote 與留言"| msg["encodeAnswer：<br/>> quote，接著是留言"]
 ```
