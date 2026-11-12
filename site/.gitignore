@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.astro/
+# Generated from docs/ by scripts/sync.mjs
+src/content/docs/reference/
+src/content/docs/zh-tw/reference/
+src/content/docs/changelog.md
+public/images/

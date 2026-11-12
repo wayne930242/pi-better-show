@@ -1,0 +1,56 @@
+---
+title: pi-better-show
+description: Interactive blocks for agent-written Markdown, and the show_doc extension for pi.
+template: splash
+hero:
+  tagline: Let your agent show you a page instead of a wall of text, and answer it by clicking. The agent writes Markdown with fenced blocks; you pick, tick, fill in, and comment, and every answer comes back to the agent as a message.
+  image:
+    html: '<img src="/pi-better-show/images/decide.png" alt="A decision page: an alert, two options, and a form" />'
+  actions:
+    - text: Get started
+      link: /pi-better-show/guide/install/
+      icon: right-arrow
+    - text: The concepts
+      link: /pi-better-show/guide/concepts/
+      variant: minimal
+    - text: GitHub
+      link: https://github.com/wayne930242/pi-better-show
+      icon: github
+      variant: minimal
+---
+
+import { Card, CardGrid, LinkCard } from "@astrojs/starlight/components";
+
+An agent that has a decision to put to you usually writes a long reply and waits for you to type one back.
+pi-better-show gives it a vocabulary of blocks instead: options, forms, tables, diagrams, diffs, and more, written as a few lines of YAML.
+The host draws them as controls, and what you do with them reaches the agent as a message.
+
+<CardGrid>
+	<Card title="Data, not markup" icon="document">
+		The agent writes a few YAML lines per block. The package owns the layout, the styles, the controls, and the code that sends answers back.
+	</Card>
+	<Card title="Answer by clicking" icon="approve-check">
+		Pick an option, tick a checklist, fill a form, or press a quick-reply chip. The answer reaches the agent as one message.
+	</Card>
+	<Card title="Comment on anything" icon="pencil">
+		Select a passage, or click a node or an edge of a diagram, and comment on it. One Send carries all of it.
+	</Card>
+	<Card title="Edit in your own editor" icon="laptop">
+		`view: "edit"` opens a file in your editor. The agent gets the net diff of your saves, not every keystroke.
+	</Card>
+	<Card title="One vocabulary, every host" icon="puzzle">
+		Core, custom elements, and React wrappers share one parser, one text fallback, and one answer encoding, so a GUI or a chat bridge draws the same blocks.
+	</Card>
+	<Card title="About 10 times fewer tokens" icon="rocket">
+		Writing the blocks of four example pages took 1,253 output tokens; the same pages as self-contained HTML took 12,364.
+	</Card>
+</CardGrid>
+
+## Read next
+
+<CardGrid>
+	<LinkCard title="Install" href="/pi-better-show/guide/install/" description="One command, then /reload." />
+	<LinkCard title="Quick start" href="/pi-better-show/guide/quick-start/" description="A first page, an answer, and the two views." />
+	<LinkCard title="Concepts" href="/pi-better-show/guide/concepts/" description="Blocks, answers, the text fallback, and hosts." />
+	<LinkCard title="Block reference" href="/pi-better-show/reference/blocks/" description="Every block kind: its YAML, what you see, what comes back." />
+</CardGrid>

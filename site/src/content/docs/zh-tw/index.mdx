@@ -1,0 +1,56 @@
+---
+title: pi-better-show
+description: 給 agent 撰寫的 Markdown 用的互動式區塊，以及 pi 的 show_doc extension。
+template: splash
+hero:
+  tagline: 讓 agent 給你一個頁面，而不是一大堆文字，你點一點就能回答。agent 寫帶有 fence 區塊的 Markdown；你挑選、勾選、填寫與留言，每個答案都會以訊息送回給 agent。
+  image:
+    html: '<img src="/pi-better-show/images/decide.png" alt="決策頁：一個 alert、兩個選項與一份表單" />'
+  actions:
+    - text: 開始使用
+      link: /pi-better-show/zh-tw/guide/install/
+      icon: right-arrow
+    - text: 概念
+      link: /pi-better-show/zh-tw/guide/concepts/
+      variant: minimal
+    - text: GitHub
+      link: https://github.com/wayne930242/pi-better-show
+      icon: github
+      variant: minimal
+---
+
+import { Card, CardGrid, LinkCard } from "@astrojs/starlight/components";
+
+agent 要請你做決定時，常常寫一大段回覆，然後等你打字回答。
+pi-better-show 給它一套區塊詞彙：選項、表單、表格、圖、diff 等等，只要寫幾行 YAML。
+宿主把它們畫成控制項，你對它們做的事會以訊息送到 agent。
+
+<CardGrid>
+	<Card title="寫資料，不寫標記" icon="document">
+		每個區塊 agent 只寫幾行 YAML。版面、樣式、控制項，以及把答案送回去的程式碼，都由套件負責。
+	</Card>
+	<Card title="點一點就能回答" icon="approve-check">
+		挑選項、勾 checklist、填表單，或按快速回覆的 chip。答案會以一則訊息送到 agent。
+	</Card>
+	<Card title="什麼都能留言" icon="pencil">
+		選取一段文字，或點圖上的節點或邊，就能留言。一次 Send 全部帶走。
+	</Card>
+	<Card title="在你自己的編輯器裡改" icon="laptop">
+		`view: "edit"` 在你的編輯器開啟檔案。agent 拿到的是你儲存的淨 diff，不是每一次敲鍵。
+	</Card>
+	<Card title="同一套詞彙，每個宿主都能用" icon="puzzle">
+		Core、自訂元素與 React 包裝共用同一個剖析器、同一套純文字備援與同一種答案編碼，所以 GUI 或聊天橋接畫出一樣的區塊。
+	</Card>
+	<Card title="省下約 10 倍 token" icon="rocket">
+		四個範例頁面的區塊只花了 1,253 個輸出 token；同樣的頁面寫成自成一體的 HTML 要 12,364 個。
+	</Card>
+</CardGrid>
+
+## 接著讀
+
+<CardGrid>
+	<LinkCard title="安裝" href="/pi-better-show/zh-tw/guide/install/" description="一行指令，再 /reload。" />
+	<LinkCard title="快速開始" href="/pi-better-show/zh-tw/guide/quick-start/" description="第一個頁面、一個答案，以及兩種檢視。" />
+	<LinkCard title="概念" href="/pi-better-show/zh-tw/guide/concepts/" description="區塊、答案、純文字備援與宿主。" />
+	<LinkCard title="區塊參考" href="/pi-better-show/zh-tw/reference/blocks/" description="每種區塊：它的 YAML、你看到什麼、送回什麼。" />
+</CardGrid>
