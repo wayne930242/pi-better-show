@@ -1,4 +1,3 @@
-import { afterAll } from "bun:test";
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { request } from "node:http";
 import { tmpdir } from "node:os";
@@ -44,13 +43,17 @@ export const postJson = (url: string, value: unknown, headers: Record<string, st
   postRaw(url, JSON.stringify(value), headers);
 
 const trees: string[] = [];
-// A tree outlives its test, so the test file removes them when it ends. Left behind they pile up in the temp
-// directory, and esbuild reads every ancestor of a page's folder, so each TSX build slows with the pile.
-afterAll(() => {
-  for (const root of trees.splice(0)) rmSync(root, { recursive: true, force: true });
-});
 
-/** A scratch tree of files (relative path to content), at its real path; it is removed when the test file ends. */
+/**
+ * Removes every scratch tree made so far. Left behind they pile up in the temp directory, and esbuild reads every
+ * ancestor of a page's folder, so each TSX build slows with the pile. `tests/cleanup.ts` calls it after the run:
+ * bun loads this module once for all test files, so a hook registered here would cover only the first of them.
+ */
+export function removeTrees(): void {
+  for (const root of trees.splice(0)) rmSync(root, { recursive: true, force: true });
+}
+
+/** A scratch tree of files (relative path to content), at its real path; it is removed after the run. */
 export function tree(files: Record<string, string>): string {
   const root = realpathSync(mkdtempSync(join(tmpdir(), "pbs-ext-")));
   trees.push(root);
