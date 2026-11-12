@@ -52,6 +52,11 @@ describe("edit mode helpers", () => {
     expect(shellWords("  subl   -w ")).toEqual(["subl", "-w"]);
     expect(shellWords("echo $HOME `x`")).toEqual(["echo", "$HOME", "`x`"]);
     expect(() => shellWords("code 'unterminated")).toThrow(/unterminated/);
+    expect(shellWords('"C:\\Program Files\\Ed\\ed.exe" -w C:\\x', true)).toEqual([
+      "C:\\Program Files\\Ed\\ed.exe",
+      "-w",
+      "C:\\x",
+    ]);
   });
 
   test("feedbackMessage drops the file headers and cuts a long diff, saying how many lines it left out", () => {

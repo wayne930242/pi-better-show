@@ -264,7 +264,7 @@ Then `/reload` in a running session.
 | View | Opens |
 |---|---|
 | `page` | The default browser (`open`, `xdg-open`, on Windows `rundll32 url.dll,FileProtocolHandler` from `%SystemRoot%`), one tab per page, on a loopback page server behind a random token. `.md` renders with its blocks; `.html`, `.tsx`, `.jsx` run in a sandboxed frame; images show as they are. |
-| `edit` (default) | A text file in your editor: `PI_BETTER_SHOW_EDITOR` (a command line, for example `code -r` or `subl`), else `code`, else `open -t` / `xdg-open` / Notepad on Windows. It must return at once; terminal editors do not work. |
+| `edit` (default) | A text file in your editor: `PI_BETTER_SHOW_EDITOR` (a command line, for example `code -r` or `subl`), else `code`, else `open -t` / `xdg-open` / Notepad on Windows (where `code` counts only as `code.exe`: VS Code's `code.cmd` needs a shell, so name `Code.exe` by its full path in `PI_BETTER_SHOW_EDITOR`; backslashes there are literal). It must return at once; terminal editors do not work. |
 
 **Block problems.** `show_doc` appends the problems of each Markdown document it opens (`checkBlocks`, see Core API) after its usual reply, and the `write` and `edit` tools of the agent get them in their own result for a `.md` file that holds a block fence: `Block problems in questions.md:` then `- line 40 form question "o5" choice 1 label (warning): ...`. Files without block fences are not read by the checker; the YAML parser and Mermaid load on the first file that needs them. Mermaid is checked in the extension with `beautiful-mermaid`, which validates the diagram type and parses what it draws; it does not catch every syntax slip in a flowchart.
 

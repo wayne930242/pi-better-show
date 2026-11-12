@@ -82,6 +82,20 @@ describe("edit session on Windows", () => {
     mac.done();
     win.done();
   });
+
+  test("a change of line endings alone is still reported, whatever core.autocrlf says", () => {
+    const win = session("win32");
+    const before = process.env.GIT_CONFIG_PARAMETERS;
+    process.env.GIT_CONFIG_PARAMETERS = "'core.autocrlf'='true'";
+    try {
+      win.save(win.path, "one\r\n");
+      expect(win.take()).toContain("@@");
+    } finally {
+      if (before === undefined) delete process.env.GIT_CONFIG_PARAMETERS;
+      else process.env.GIT_CONFIG_PARAMETERS = before;
+      win.done();
+    }
+  });
 });
 
 describe("edit session coalescing", () => {

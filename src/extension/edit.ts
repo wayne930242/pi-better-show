@@ -49,8 +49,11 @@ export const defaultLaunch = (command: string, args: string[]): Promise<void> =>
     });
   });
 
-/** Splits a command line into words, honouring single and double quotes and backslash escapes; no expansion happens. */
-export function shellWords(line: string): string[] {
+/**
+ * Splits a command line into words, honouring single and double quotes and backslash escapes; no expansion happens. With `windows`, a
+ * backslash is an ordinary character, so `"C:\\Program Files\\Editor\\editor.exe" -w` keeps its path.
+ */
+export function shellWords(line: string, windows = false): string[] {
   const words: string[] = [];
   let word = "";
   let quote: string | undefined;
@@ -59,12 +62,12 @@ export function shellWords(line: string): string[] {
     const char = line[index] as string;
     if (quote) {
       if (char === quote) quote = undefined;
-      else if (char === "\\" && quote === '"' && index + 1 < line.length) word += line[++index];
+      else if (!windows && char === "\\" && quote === '"' && index + 1 < line.length) word += line[++index];
       else word += char;
     } else if (char === "'" || char === '"') {
       quote = char;
       started = true;
-    } else if (char === "\\" && index + 1 < line.length) {
+    } else if (!windows && char === "\\" && index + 1 < line.length) {
       word += line[++index];
       started = true;
     } else if (/\s/.test(char)) {
@@ -136,7 +139,7 @@ export function createEditSession(deps: EditDeps, events: EditEvents) {
   /** Opens the paths in the user's editor: the chosen command, else VS Code, else the system's text editor. */
   async function open(paths: string[]): Promise<string> {
     if (deps.editor) {
-      const [command, ...args] = shellWords(deps.editor);
+      const [command, ...args] = shellWords(deps.editor, deps.platform === "win32");
       if (!command) throw new Error(`${EDITOR_ENV} is empty`);
       if (!deps.onPath(command)) throw new Error(`${EDITOR_ENV}=${deps.editor}, but ${command} is not on PATH`);
       await deps.launch(command, [...args, ...paths]);
@@ -173,7 +176,20 @@ export function createEditSession(deps: EditDeps, events: EditEvents) {
    */
   function diffOf(before: string, after: string, display: string): string {
     if (deps.platform === "win32" && !deps.onPath("diff")) {
-      const git = deps.run("git", ["diff", "--no-index", "--no-color", "--no-ext-diff", "-U0", "--", before, after]);
+      const git = deps.run("git", [
+        "-c",
+        "core.autocrlf=false",
+        "-c",
+        "core.safecrlf=false",
+        "diff",
+        "--no-index",
+        "--no-color",
+        "--no-ext-diff",
+        "-U0",
+        "--",
+        before,
+        after,
+      ]);
       if (git.status !== 0 && git.status !== 1)
         throw new Error(`git diff failed: ${(git.stderr || git.stdout).trim()}`);
       return gitDiffHunks(git.stdout);

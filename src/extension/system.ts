@@ -32,8 +32,9 @@ const isFile = (path: string): boolean => {
 };
 
 /**
- * Whether `command` names a program on PATH. On Windows the PATH is scanned with each `PATHEXT` extension (a name that has one is tried as
- * it is too), with no shell: a desk machine need not have `sh`. Elsewhere `sh -c 'command -v'` answers, as it did before.
+ * Whether `command` names a program on PATH that can be started without a shell. On Windows the PATH is scanned, with no shell (a desk
+ * machine need not have `sh`), for `.exe` and `.com` only: Node spawns nothing else without `shell: true`, so a `code.cmd` shim counts as
+ * absent and the caller falls back instead of failing at launch. Elsewhere `sh -c 'command -v'` answers, as it did before.
  */
 export function onPath(
   command: string,
@@ -43,11 +44,18 @@ export function onPath(
   shell: (command: string) => boolean = () => false,
 ): boolean {
   if (platform !== "win32") return shell(command);
+  const ext = /\.([^\\/.]+)$/.exec(command)?.[1]?.toLowerCase();
+  if (ext === "exe" || ext === "com") return checkNames([command], command, env, exists);
+  return checkNames([`${command}.exe`, `${command}.com`], command, env, exists);
+}
+
+function checkNames(names: string[], command: string, env: Env, exists: (path: string) => boolean): boolean {
   const path = env.PATH ?? env.Path ?? "";
-  const extensions = (env.PATHEXT ?? ".COM;.EXE;.BAT;.CMD").split(";").filter((ext) => ext !== "");
-  const names = /\.[^\\/.]+$/.test(command) ? [command] : extensions.map((ext) => command + ext.toLowerCase());
   if (/[\\/]/.test(command)) return names.some((name) => exists(name));
-  const dirs = path.split(";").filter((dir) => dir !== "");
+  const dirs = path
+    .split(";")
+    .map((dir) => dir.replace(/^"(.*)"$/, "$1"))
+    .filter((dir) => dir !== "");
   return dirs.some((dir) => names.some((name) => exists(win32.join(dir, name))));
 }
 
@@ -57,12 +65,12 @@ export const windowsTextEditor = (env: Env = process.env): string => systemProgr
 /**
  * `git diff --no-index` output with git's own header lines taken out, so that what is left reads like `diff -U0` without `--label`: the
  * `@@` hunks and their lines. The `---` and `+++` lines go too; the caller names the file itself. Git writes the line before a hunk after its
- * header (`@@ -2 +2 @@ one`); that context is dropped, as `diff` has none.
+ * header (`@@ -2 +2 @@ one`); that context is dropped, as `diff` has none. A binary change keeps git's `Binary files … differ` line.
  */
 export function gitDiffHunks(stdout: string): string {
   const lines = stdout.split("\n");
   const first = lines.findIndex((line) => line.startsWith("@@"));
-  if (first === -1) return "";
+  if (first === -1) return lines.find((line) => line.startsWith("Binary files ")) ?? "";
   return lines
     .slice(first)
     .map((line) => (line.startsWith("@@") ? line.replace(/^(@@ [^@]* @@).*$/, "$1") : line))
