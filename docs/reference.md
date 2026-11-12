@@ -687,7 +687,7 @@ Then `/reload` in a running session.
 sequenceDiagram
   participant A as Agent
   participant E as show_doc
-  participant S as Page server<br/>loopback, random token
+  participant S as Page server
   participant B as Browser page
   A->>E: show_doc(paths, reason, "page")
   E->>S: start it once, allow the files
@@ -749,7 +749,7 @@ A diagram element is quoted in the diagram's own words, so the agent can find it
 <!-- Diagram: src/extension/client/diagram-map.ts (diagramMap, namesOf, disambiguated, diagramQuote), src/elements/display.ts (pbs-diagram-target), src/extension/client/page.ts, src/extension/client/feedback.ts (feedbackAnswer), src/core/answer.ts (feedbackText). -->
 
 ```mermaid
-flowchart LR
+flowchart TD
   svg["Diagram SVG<br/>from /diagram.svg"] -->|"fetchDiagramMap"| map["Targets: node, edge,<br/>group, with their shapes"]
   map -->|"buttons over the image"| press["Click, or Tab and<br/>Enter or Space"]
   press -->|"pbs-diagram-target"| quote["diagramQuote:<br/>[Diagram 2, type] kind: text"]
@@ -797,7 +797,7 @@ flowchart TD
   held -->|"your next prompt"| start["The run starts with the<br/>net diff of each changed file"]
   idle -->|"no, working"| quiet["No save for 3 seconds"]
   quiet --> steer["Steered into the running turn"]
-  agentwrite["The agent is about to write<br/>a file you changed"] --> first["Your change goes first,<br/>at once"]
+  idle -->|"no, and the agent is about<br/>to write a file you changed"| first["Your change goes first,<br/>at once"]
 ```
 
 <details>
