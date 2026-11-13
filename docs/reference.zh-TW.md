@@ -1,4 +1,4 @@
-# pi-better-show 參考 <!-- source: docs/reference.md @ 5408b31 -->
+# pi-better-show 參考 <!-- source: docs/reference.md @ ff1d1b9 -->
 
 [README](../README.zh-TW.md) 背後的完整契約：每一種區塊、core、server、元素與 React 的 API，以及 `show_doc` extension 的細節。請找到需要的那一節，其餘可以略過。
 
