@@ -98,12 +98,25 @@ function enclosing(groups: Element[], node: Element): Element | undefined {
 type Draft = DiagramTarget & { tag: string; id?: string };
 
 /**
+ * What a number is written after: a run of `#` that no label or id of the drawing has, so a numbered quote never reads
+ * as another element's own words (`A → B ##1` beside a node labelled `B #1`). `#` unless a label has one.
+ */
+function numberingOf(svg: Element): string {
+  const said = [...svg.querySelectorAll("[data-label], [data-id]")].flatMap((element) => [
+    words(element.getAttribute("data-label")),
+    words(element.getAttribute("data-id")),
+  ]);
+  let mark = "#";
+  while (said.some((text) => text.includes(mark))) mark += "#";
+  return mark;
+}
+
+/**
  * Makes every target's text unique among `targets` (one kind), so one quote names one element. Only a text that more
  * than one target has changes: each adds its tag where the tags differ (`Check (B)`), and what is still alike is
- * numbered in drawing order (`#1`, `#2`), skipping a number whose text another target already has (a label written as
- * `B #1`).
+ * numbered in drawing order after `numbering` (`#1`, `#2`), which no label has, so a numbered text is no other's.
  */
-function disambiguated(targets: Draft[]): DiagramTarget[] {
+function disambiguated(targets: Draft[], numbering: string): DiagramTarget[] {
   const count = (list: DiagramTarget[]): Map<string, number> => {
     const seen = new Map<string, number>();
     for (const target of list) seen.set(target.text, (seen.get(target.text) ?? 0) + 1);
@@ -119,16 +132,12 @@ function disambiguated(targets: Draft[]): DiagramTarget[] {
       : target,
   );
   const second = count(named);
-  const taken = new Set(named.filter((target) => (second.get(target.text) ?? 0) < 2).map((target) => target.text));
   const next = new Map<string, number>();
   return named.map((target) => {
     if ((second.get(target.text) ?? 0) < 2) return target;
-    let ordinal = next.get(target.text) ?? 0;
-    do ordinal += 1;
-    while (taken.has(`${target.text} #${ordinal}`));
+    const ordinal = (next.get(target.text) ?? 0) + 1;
     next.set(target.text, ordinal);
-    taken.add(`${target.text} #${ordinal}`);
-    return { ...target, text: `${target.text} #${ordinal}` };
+    return { ...target, text: `${target.text} ${numbering}${ordinal}` };
   });
 }
 
@@ -136,13 +145,18 @@ function disambiguated(targets: Draft[]): DiagramTarget[] {
  * Tells apart the nodes or the groups, and records each one's final name and tag by id: later targets (a `[*]`'s
  * composite state, an edge's ends) are named by them. A target with no text or shape is left out.
  */
-function settle(drafts: Draft[], names: Map<string, string>, tags: Map<string, string>): DiagramTarget[] {
+function settle(
+  drafts: Draft[],
+  names: Map<string, string>,
+  tags: Map<string, string>,
+  numbering: string,
+): DiagramTarget[] {
   for (const draft of drafts) {
     names.set(draft.id ?? "", draft.text);
     tags.set(draft.id ?? "", draft.tag);
   }
   const kept = drafts.filter((draft) => draft.text && draft.shapes.length > 0);
-  const targets = disambiguated(kept);
+  const targets = disambiguated(kept, numbering);
   for (const [index, draft] of kept.entries()) names.set(draft.id ?? "", targets[index]?.text ?? draft.text);
   return targets;
 }
@@ -214,6 +228,7 @@ export function diagramMap(svg: Element): DiagramMap | undefined {
   /** Each node's and group's name, and the tag that tells it apart, by id: what an edge is named by. */
   const names = new Map<string, string>();
   const tags = new Map<string, string>();
+  const numbering = numberingOf(svg);
 
   const groupElements = [...svg.querySelectorAll("g.subgraph")];
   const groups = settle(
@@ -225,6 +240,7 @@ export function diagramMap(svg: Element): DiagramMap | undefined {
     }),
     names,
     tags,
+    numbering,
   );
 
   const nodeElements = [...svg.querySelectorAll("g.node")];
@@ -250,6 +266,7 @@ export function diagramMap(svg: Element): DiagramMap | undefined {
     }),
     names,
     tags,
+    numbering,
   );
 
   const name = (id: string | null): string => names.get(id ?? "") || words(id);
@@ -281,7 +298,7 @@ export function diagramMap(svg: Element): DiagramMap | undefined {
     });
   }
 
-  const targets = inReadingOrder([...groups, ...disambiguated(edges), ...nodes]);
+  const targets = inReadingOrder([...groups, ...disambiguated(edges, numbering), ...nodes]);
   return targets.length > 0 ? { viewBox, targets } : undefined;
 }
 
@@ -324,18 +341,18 @@ export function diagramRef(diagram: Element): string {
 
 /**
  * A `diagramQuote` made on an earlier load, with the position its diagram (found by `diagramRef`) has on the page now.
- * A diagram whose source changed is not found, and the quote keeps the position it has.
+ * A diagram whose source changed is not found: `undefined`, and the panel keeps the quote's position.
  */
-export function requoteDiagram(quote: string, ref: string): string {
+export function requoteDiagram(quote: string, ref: string): string | undefined {
   let found: Element | undefined;
   try {
     const [source, nth] = JSON.parse(ref) as [unknown, unknown];
     const alike = [...document.querySelectorAll("pbs-diagram")].filter((other) => sourceOf(other) === source);
     found = typeof nth === "number" ? alike[nth] : undefined;
   } catch {
-    // A ref that cannot be read leaves the quote as it is.
+    // A ref that cannot be read finds nothing.
   }
-  if (!found) return quote;
+  if (!found) return undefined;
   const position = [...document.querySelectorAll("pbs-diagram")].indexOf(found) + 1;
   return quote.replace(/^\[Diagram \d+,/, `[Diagram ${position},`);
 }

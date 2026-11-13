@@ -37,9 +37,9 @@ In a flowchart or a state diagram, click a node, an edge (its line or its label)
 <summary>How a quote reads</summary>
 
 - It starts with the diagram's position among the page's diagrams and its type, then `node: <label>`, `edge: <from> → <to>` (with the edge's label in quotes), or `group: <title>`.
-- A quote names exactly one element. When two elements would read alike, it adds the node's id (`node: Check (B)`) or a number in drawing order (`#2`), and an edge names its ends as their own quotes do (`edge: Check (A) → Done`).
+- A quote names exactly one element. When two elements would read alike, it adds the node's id (`node: Check (B)`) or a number in drawing order (`#2`, or `##2` when a label has a `#` of its own), and an edge names its ends as their own quotes do (`edge: Check (A) → Done`).
 - A state diagram's `[*]` reads `start` or `end`, scoped by its composite state when there are several (`node: start (in Active)`), and `start ([*])` beside a state named `start`.
-- The same element is added to the panel only once. When the agent's edit reloads the page with diagrams added or removed, a draft's quote names its diagram's new position.
+- The same element is added to the panel only once. When the agent's edit reloads the page with diagrams added or removed, a draft's quote names its diagram's new position. A quote whose diagram itself changed keeps its position, and adds `(from an earlier version of the page)` when another quote reads the same.
 - Only flowcharts and state diagrams have targets; other diagrams stay plain images.
 
 [The reference](/pi-better-show/reference/the-pi-extension/#diagram-comments) draws how a click becomes a quote.

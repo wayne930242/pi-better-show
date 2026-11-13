@@ -37,9 +37,9 @@ Overall: Go with SQLite.
 <summary>quote 怎麼讀</summary>
 
 - 它以圖在頁面所有圖中的位置與它的種類開頭，接著是 `node: <label>`、`edge: <from> → <to>`（邊的標籤用引號括起來）或 `group: <title>`。
-- quote 只指一個元素。兩個元素讀起來一樣時，會加上節點的 id（`node: Check (B)`）或依繪製順序的編號（`#2`），邊則用兩端各自 quote 的名稱稱呼它們（`edge: Check (A) → Done`）。
+- quote 只指一個元素。兩個元素讀起來一樣時，會加上節點的 id（`node: Check (B)`）或依繪製順序的編號（`#2`；標籤本身有 `#` 時是 `##2`），邊則用兩端各自 quote 的名稱稱呼它們（`edge: Check (A) → Done`）。
 - 狀態圖的 `[*]` 讀成 `start` 或 `end`，有多個時會以它所在的複合狀態限定（`node: start (in Active)`），旁邊有名為 `start` 的狀態時讀成 `start ([*])`。
-- 同一個元素只會加進面板一次。agent 的修改讓頁面重新載入、前面多了或少了圖時，草稿裡的 quote 會改指那張圖的新位置。
+- 同一個元素只會加進面板一次。agent 的修改讓頁面重新載入、前面多了或少了圖時，草稿裡的 quote 會改指那張圖的新位置。圖本身改了的 quote 保留原本的位置，若另一則 quote 讀起來一樣，就加上 `(from an earlier version of the page)`。
 - 只有流程圖與狀態圖有目標；其他圖種維持純圖片。
 
 [參考文件](/pi-better-show/zh-tw/reference/the-pi-extension/#圖的留言)畫出一次點擊如何變成 quote。

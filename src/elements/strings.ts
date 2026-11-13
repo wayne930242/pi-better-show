@@ -41,6 +41,8 @@ export interface Strings {
   diagramNode: string;
   diagramEdge: string;
   diagramGroup: string;
+  /** How to move through a diagram's elements, for screen readers. */
+  diagramKeys: string;
   diff: string;
   table: string;
   mindmap: string;
@@ -98,6 +100,7 @@ export const STRINGS: Record<Locale, Strings> = {
     diagramNode: "node",
     diagramEdge: "edge",
     diagramGroup: "group",
+    diagramKeys: "Arrow keys move between its elements; Enter or Space comments on one.",
     diff: "Diff",
     table: "Table",
     mindmap: "Mind map",
@@ -152,6 +155,7 @@ export const STRINGS: Record<Locale, Strings> = {
     diagramNode: "節點",
     diagramEdge: "連線",
     diagramGroup: "群組",
+    diagramKeys: "用方向鍵在元素之間移動，按 Enter 或空白鍵針對它留言。",
     diff: "差異",
     table: "表格",
     mindmap: "心智圖",

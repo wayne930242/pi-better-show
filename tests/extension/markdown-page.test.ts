@@ -88,6 +88,63 @@ describe("a draft's diagram quote across the reload an agent's edit causes", () 
     load(storage, [STATE, `${FLOW}\n B --> C[Ship]`]);
     expect(quotes()).toEqual(["[Diagram 2, flowchart] node: Check"]);
   });
+
+  const OTHER = "flowchart TD\n A[Check] --> S[Ship]";
+  const comments = () =>
+    [...document.querySelectorAll<HTMLTextAreaElement>(".pbs-fb-item textarea")].map((box) => box.value);
+  const write = (index: number, text: string) => {
+    const box = document.querySelectorAll<HTMLTextAreaElement>(".pbs-fb-item textarea").item(index);
+    box.value = text;
+    box.dispatchEvent(new Event("input", { bubbles: true }));
+  };
+  const STALE = " (from an earlier version of the page)";
+
+  test("a quote that kept its position never shares it with one that moved there: it is marked", async () => {
+    const storage = session();
+    const [other, flow] = load(storage, [OTHER, FLOW]);
+    if (!other || !flow) throw new Error("no diagram");
+    pick(other, "node", "Check");
+    write(0, "first");
+    pick(flow, "node", "Check");
+    write(1, "second");
+    // FLOW moves to position 1, where the quote of OTHER, whose source changed, stays.
+    const posted: Answer[] = [];
+    const [moved] = load(storage, [FLOW, `${OTHER}\n S --> T[Done]`], posted);
+    if (!moved) throw new Error("no diagram");
+    expect(quotes()).toEqual([`[Diagram 1, flowchart] node: Check${STALE}`, "[Diagram 1, flowchart] node: Check"]);
+    expect(comments()).toEqual(["first", "second"]);
+    // The element where FLOW is now is the draft that moved there, not the marked one.
+    pick(moved, "node", "Check");
+    expect(quotes()).toHaveLength(2);
+    expect(document.activeElement).toBe(document.querySelectorAll(".pbs-fb-item textarea").item(1));
+    document.querySelector<HTMLButtonElement>(".pbs-fb-send")?.click();
+    await Bun.sleep(10);
+    expect(posted[0]?.fields.filter(([name]) => name !== "page")).toEqual([
+      ["quote", `[Diagram 1, flowchart] node: Check${STALE}`],
+      ["comment", "first"],
+      ["quote", "[Diagram 1, flowchart] node: Check"],
+      ["comment", "second"],
+    ]);
+  });
+
+  test("a new comment at the position a changed diagram's quote kept is added, and the old quote is marked", () => {
+    const storage = session();
+    const [flow] = load(storage, [FLOW]);
+    if (!flow) throw new Error("no diagram");
+    pick(flow, "node", "Check");
+    write(0, "before");
+    const [changed] = load(storage, [`${FLOW}\n B --> C[Ship]`]);
+    if (!changed) throw new Error("no diagram");
+    expect(quotes()).toEqual(["[Diagram 1, flowchart] node: Check"]);
+    pick(changed, "node", "Check");
+    expect(quotes()).toEqual([`[Diagram 1, flowchart] node: Check${STALE}`, "[Diagram 1, flowchart] node: Check"]);
+    expect(comments()).toEqual(["before", ""]);
+    expect(document.activeElement).toBe(document.querySelectorAll(".pbs-fb-item textarea").item(1));
+    // Back on the source the first quote was made on, it is found again and loses the mark; the other gets it.
+    load(storage, [FLOW]);
+    expect(quotes()).toEqual(["[Diagram 1, flowchart] node: Check", `[Diagram 1, flowchart] node: Check${STALE}`]);
+    expect(comments()).toEqual(["before", ""]);
+  });
 });
 
 describe("a diagram comment from the keyboard", () => {
@@ -118,5 +175,30 @@ describe("a diagram comment from the keyboard", () => {
     expect(document.activeElement).toBe(flow);
     expect(root(flow).activeElement).toBe(done);
     expect(root(flow).querySelectorAll('[tabindex="0"]')).toHaveLength(1);
+  });
+
+  test("Escape that ends an input method's composition leaves focus in the comment box", async () => {
+    configure({
+      diagramUrl: () => "/d.svg",
+      diagramMap: async () =>
+        diagramMap(
+          new DOMParser().parseFromString(mermaidSvg(FLOW, { scheme: "light" }), "image/svg+xml").documentElement,
+        ),
+    });
+    const [flow] = load(session(), [FLOW]);
+    if (!flow) throw new Error("no diagram");
+    await Bun.sleep(5);
+    const done = [...root(flow).querySelectorAll<SVGElement>('[role="button"]')].find(
+      (hit) => hit.getAttribute("aria-label") === "Comment on node: Done",
+    );
+    if (!done) throw new Error("no hit area for Done");
+    done.focus();
+    key(done, "Enter");
+    const box = document.querySelector<HTMLTextAreaElement>(".pbs-fb-item textarea");
+    if (!box) throw new Error("no comment box");
+    expect(key(box, "Escape", { isComposing: true }).defaultPrevented).toBe(false);
+    expect(document.activeElement).toBe(box);
+    expect(key(box, "Escape", { keyCode: 229 }).defaultPrevented).toBe(false);
+    expect(document.activeElement).toBe(box);
   });
 });

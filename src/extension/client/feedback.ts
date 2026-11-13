@@ -81,9 +81,22 @@ export interface FeedbackOptions {
   diagrams?: boolean;
   /**
    * Rewrites a restored draft's quote that came with a `ref` for the page as it is now: the reload an agent's edit causes
-   * may have moved what the quote names.
+   * may have moved what the quote names. `undefined` when what the ref names is no longer on the page: the quote keeps
+   * its text, marked (`STALE`) while another draft's quote reads the same.
    */
-  requote?: (quote: string, ref: string) => string;
+  requote?: (quote: string, ref: string) => string | undefined;
+}
+
+/**
+ * What a draft's quote adds when what it named is no longer on the page and another draft's quote reads the same, so
+ * two drafts never share a quote. Part of the message the agent reads; keep it stable.
+ */
+export const STALE = " (from an earlier version of the page)";
+
+/** A quote without the `STALE` mark (and its number) it was saved with. */
+function unmarked(quote: string): string {
+  const at = quote.lastIndexOf(STALE);
+  return at !== -1 && /^(?: #\d+)?$/.test(quote.slice(at + STALE.length)) ? quote.slice(0, at) : quote;
 }
 
 /** A passage to comment on, and where the Add button goes (viewport coordinates of the panel's document). */
@@ -122,19 +135,48 @@ export function mountFeedback(options: FeedbackOptions): {
   const { words, storage, storageKey } = options;
   let items: FeedbackItem[] = [];
   let overall = "";
+  /** The restored drafts whose `ref` names nothing on the page now, with their quote as it was made (unmarked). */
+  const stale = new Map<FeedbackItem, string>();
   try {
     const saved = JSON.parse(storage.getItem(storageKey) ?? "null") as {
       items?: FeedbackItem[];
       overall?: string;
     } | null;
     const { requote } = options;
-    items = (saved?.items ?? []).map((item) =>
-      item.ref && requote ? { ...item, quote: requote(item.quote, item.ref) } : item,
-    );
+    items = (saved?.items ?? []).map((item) => {
+      if (!item.ref || !requote) return item;
+      const made = unmarked(item.quote);
+      const quote = requote(made, item.ref);
+      if (quote !== undefined) return { ...item, quote };
+      const kept = { ...item, quote: made };
+      stale.set(kept, made);
+      return kept;
+    });
     overall = saved?.overall ?? "";
   } catch {
     // A draft that cannot be read is dropped.
   }
+  /**
+   * Marks each stale quote that reads like another draft's, current or stale, and numbers marks that would still be
+   * alike; a stale quote that reads like no other is left as it was made.
+   */
+  const settle = (): void => {
+    const used = new Set(items.filter((item) => !stale.has(item)).map((item) => item.quote));
+    const made = [...stale.values()];
+    for (const item of items) {
+      const quote = stale.get(item);
+      if (quote === undefined) continue;
+      if (!used.has(quote) && made.filter((other) => other === quote).length < 2) {
+        item.quote = quote;
+        continue;
+      }
+      let marked = `${quote}${STALE}`;
+      for (let n = 2; used.has(marked); n += 1) marked = `${quote}${STALE} #${n}`;
+      item.quote = marked;
+      used.add(marked);
+    }
+  };
+  settle();
   const save = (): void => {
     if (items.length === 0 && !overall) storage.removeItem(storageKey);
     else storage.setItem(storageKey, JSON.stringify({ items, overall }));
@@ -171,14 +213,20 @@ export function mountFeedback(options: FeedbackOptions): {
         const remove = make("button", { type: "button", textContent: words.remove });
         remove.addEventListener("click", () => {
           items.splice(index, 1);
-          save();
-          draw();
+          stale.delete(item);
+          changed();
         });
         entry.append(quote, box, remove);
         return entry;
       }),
     );
     toggle.textContent = items.length > 0 ? `${words.feedback} (${items.length})` : words.feedback;
+  };
+  /** After a draft is added or removed: marks the quotes that now read alike, keeps, and redraws. */
+  const changed = (): void => {
+    settle();
+    save();
+    draw();
   };
   overallBox.addEventListener("input", () => {
     overall = overallBox.value;
@@ -191,6 +239,8 @@ export function mountFeedback(options: FeedbackOptions): {
     panel.hidden = !panel.hidden;
   });
   panel.addEventListener("keydown", (event) => {
+    // An Escape that ends an input method's composition belongs to the input method.
+    if (event.isComposing || event.keyCode === 229) return;
     if (event.key !== "Escape" || !back?.isConnected) return;
     event.preventDefault();
     back.focus();
@@ -229,11 +279,11 @@ export function mountFeedback(options: FeedbackOptions): {
   const comment = (quote: string, from: { ref?: string; back?: HTMLElement | SVGElement } = {}): void => {
     const { ref } = from;
     back = from.back;
-    const known = items.findIndex((item) => item.quote === quote);
+    // A stale draft names something the page no longer has, even when its quote reads the same.
+    const known = items.findIndex((item) => item.quote === quote && !stale.has(item));
     if (known === -1) {
       items.push(ref ? { quote, comment: "", ref } : { quote, comment: "" });
-      save();
-      draw();
+      changed();
     }
     open(known === -1 ? items.length - 1 : known);
   };
@@ -244,8 +294,7 @@ export function mountFeedback(options: FeedbackOptions): {
     add.hidden = true;
     getSelection()?.removeAllRanges();
     if (quote) items.push({ quote, comment: "" });
-    save();
-    draw();
+    changed();
     open(items.length - 1);
   });
   sendButton.addEventListener("click", () => {
@@ -260,6 +309,7 @@ export function mountFeedback(options: FeedbackOptions): {
       .then(
         () => {
           items = [];
+          stale.clear();
           overall = "";
           overallBox.value = "";
           save();

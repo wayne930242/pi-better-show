@@ -110,6 +110,15 @@ describe("diagramMap: every quote is unique within its diagram", () => {
   test("an id suffix and a number never repeat a label that already reads that way", () => {
     unique(texts('flowchart TD\n A[Check] --> B[Check]\n C["Check (A)"]\n D["Check (A) #1"]'));
   });
+
+  test("a number never reads as part of a label: with a # in a label, it takes a run of # no label has", () => {
+    const targets = texts('flowchart TD\n A --> B\n A --> B\n A --> C["B #1"]');
+    unique(targets);
+    expect(targets).toContain("edge: A → B #1");
+    expect(targets).toContain("edge: A → B ##1");
+    expect(targets).toContain("edge: A → B ##2");
+    expect(texts('flowchart TD\n A --> B\n A --> B\n C["x ## y"]')).toContain("edge: A → B ###2");
+  });
 });
 
 describe("diagramMap: a state diagram's [*] is start or end, scoped when there are several", () => {
@@ -272,6 +281,16 @@ describe("pbs-diagram with diagramMap: clicking an element reports its words", (
     // A click moves the tab stop too.
     (hit(el, "Check") as SVGElement).focus();
     expect([...root(el).querySelectorAll('[tabindex="0"]')]).toEqual([hit(el, "Check")]);
+  });
+
+  test("screen readers are told how to move: the diagram's group describes the arrow keys", async () => {
+    const el = await mountDiagram(FLOW, []);
+    const group = root(el).querySelector('svg[role="group"]');
+    const id = group?.getAttribute("aria-describedby") ?? "";
+    expect(id).not.toBe("");
+    expect(root(el).querySelector(`[id="${id}"]`)?.textContent).toBe(
+      "Arrow keys move between its elements; Enter or Space comments on one.",
+    );
   });
 
   test("the overlay draws groups below edges below nodes, whatever the reading order", async () => {

@@ -356,11 +356,21 @@ export class PbsDiagram extends PbsElement<MermaidData> {
         }
       });
     }
-    // Later buttons sit above earlier ones: groups below edges below nodes, so a node inside a group is the node.
+    // Later buttons sit above earlier ones: groups below edges below nodes, so a node inside a group is the node. The
+    // DOM keeps that order, not the reading order; the description tells a screen reader to move with the arrow keys.
     const layers: DiagramTarget["kind"][] = ["group", "edge", "node"];
+    const keys = svg("desc", { id: "diagram-keys" });
+    keys.textContent = this.t("diagramKeys");
     return svg(
       "svg",
-      { class: "targets", viewBox: map.viewBox, role: "group", "aria-label": this.t("diagram") },
+      {
+        class: "targets",
+        viewBox: map.viewBox,
+        role: "group",
+        "aria-label": this.t("diagram"),
+        "aria-describedby": "diagram-keys",
+      },
+      keys,
       ...layers.flatMap((kind) => hits.filter((_, index) => map.targets[index]?.kind === kind)),
     );
   }
