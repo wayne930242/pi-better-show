@@ -1,4 +1,4 @@
-# pi-better-show 參考 <!-- source: docs/reference.md @ 7299eb2 -->
+# pi-better-show 參考 <!-- source: docs/reference.md @ d6372dc -->
 
 [README](../README.zh-TW.md) 背後的完整契約：每一種區塊、core、server、元素與 React 的 API，以及 `show_doc` extension 的細節。請找到需要的那一節，其餘可以略過。
 
@@ -628,7 +628,7 @@ configure({
 <details>
 <summary>宿主要提供什麼</summary>
 
-設了 `diagramMap` 後，`pbs-diagram` 在圖片的每個節點、邊（它的線與標籤框）與 subgraph 標題上蓋一個透明按鈕。`diagramMap(url)` 收到 `diagramUrl` 回傳的 URL，並解析成 `DiagramMap`：`{ viewBox, targets: [{ kind: "node" | "edge" | "group", text, shapes: [{ tag, attrs }] }] }`，形狀用圖片自己的座標，而且只帶幾何屬性。讀取並剖析繪圖的是宿主，因為元素從不剖析標記；extension 的頁面為 `mermaidSvg` 畫的 SVG 做這件事（`g.node`、`.edge`、`g.edge-label`、`g.subgraph` 與它們的 `data-*` 標籤：流程圖與狀態圖；其他圖種沒有目標，維持圖片）。點擊，或在有焦點的按鈕上按 Enter 或空白鍵，會觸發 `pbs-diagram-target`（冒泡、composed），帶 `detail: { kind, text }`。這些按鈕是 Tab 停靠點，帶 `aria-label`（「Comment on edge: …」），並在滑過與取得焦點時顯示蓋在圖上的色調，所以不會有東西移動。
+設了 `diagramMap` 後，`pbs-diagram` 在圖片的每個節點、邊（它的線與標籤框）與 subgraph 標題上蓋一個透明按鈕。`diagramMap(url)` 收到 `diagramUrl` 回傳的 URL，並解析成 `DiagramMap`：`{ viewBox, targets: [{ kind: "node" | "edge" | "group", text, shapes: [{ tag, attrs }] }] }`，形狀用圖片自己的座標，而且只帶幾何屬性。讀取並剖析繪圖的是宿主，因為元素從不剖析標記；extension 的頁面為 `mermaidSvg` 畫的 SVG 做這件事（`g.node`、`.edge`、`g.edge-label`、`g.subgraph` 與它們的 `data-*` 標籤：流程圖與狀態圖；其他圖種沒有目標，維持圖片）。目標依閱讀順序排列，也就是方向鍵走的順序；不論順序如何，群組畫在邊的下面，邊畫在節點的下面。點擊，或在有焦點的按鈕上按 Enter 或空白鍵，會從按鈕本身觸發 `pbs-diagram-target`（冒泡、composed），帶 `detail: { kind, text }`，所以 `composedPath()[0]` 就是宿主要把焦點還回去的地方。整張圖是一個 Tab 停靠點，落在最後取得焦點的按鈕上（一開始是第一個）；方向鍵移到下一個或上一個按鈕，Home 與 End 移到第一個或最後一個。每個按鈕都帶 `aria-label`（「Comment on edge: …」），並在滑過與取得焦點時顯示蓋在圖上的色調，所以不會有東西移動。
 
 </details>
 
@@ -681,7 +681,7 @@ pi install npm:pi-better-show
 
 `show_doc({paths, reason, view})` 會立刻回傳，不等你；你在頁面或編輯器裡做的事，之後會以訊息的形式送到 agent。
 
-<!-- Diagram: src/extension/tool.ts (showDocTool), src/extension/controller.ts (show, showPages, ensureServer, decide, deliver), src/extension/server.ts (postAnswer, fromHostPage, sendEvents), src/extension/client/page.ts, src/core/answer.ts (encodeAnswer). -->
+<!-- Diagram: src/extension/tool.ts (showDocTool), src/extension/controller.ts (show, showPages, ensureServer, decide, deliver), src/extension/server.ts (postAnswer, fromHostPage, sendEvents), src/extension/client/page.ts, src/extension/client/markdown-page.ts (mountPage), src/core/answer.ts (encodeAnswer). -->
 
 ```mermaid
 sequenceDiagram
@@ -738,7 +738,7 @@ Markdown 頁面是文章加區塊：文章是 Markdown，原始 HTML 保留為�
 
 ### 意見面板
 
-選取一段文字就能留言，也可以在流程圖或狀態圖裡點節點、邊或 subgraph 標題（用鍵盤時 Tab 到它，再按 Enter 或空白鍵）。
+選取一段文字就能留言，也可以在流程圖或狀態圖裡點節點、邊或 subgraph 標題（用鍵盤時 Tab 到這張圖，用方向鍵移到元素，再按 Enter 或空白鍵；在面板裡按 Escape 會回到它）。
 面板會收集留言與整體意見，在一則訊息中送出；它的草稿能撐過 agent 修改造成的重新載入。
 它是一般的 `feedback` 答案：每則 quote 加上它的留言，最後是 `Overall: …`。
 
@@ -746,12 +746,12 @@ Markdown 頁面是文章加區塊：文章是 Markdown，原始 HTML 保留為�
 
 圖上的元素會以圖自己的用語被引用，agent 才能在它寫的原始碼中找到它。
 
-<!-- Diagram: src/extension/client/diagram-map.ts (diagramMap, namesOf, disambiguated, diagramQuote), src/elements/display.ts (pbs-diagram-target), src/extension/client/page.ts, src/extension/client/feedback.ts (feedbackAnswer), src/core/answer.ts (feedbackText). -->
+<!-- Diagram: src/extension/client/diagram-map.ts (diagramMap, settle, disambiguated, inReadingOrder, diagramQuote, diagramRef, requoteDiagram), src/elements/display.ts (pbs-diagram-target), src/extension/client/markdown-page.ts (mountPage), src/extension/client/feedback.ts (feedbackAnswer, requote), src/core/answer.ts (feedbackText). -->
 
 ```mermaid
 flowchart TD
   svg["圖的 SVG<br/>來自 /diagram.svg"] -->|"fetchDiagramMap"| map["目標：節點、邊、<br/>群組，連同它們的形狀"]
-  map -->|"圖上的按鈕"| press["點擊，或 Tab 後<br/>按 Enter 或空白鍵"]
+  map -->|"圖上的按鈕"| press["點擊，或 Tab、方向鍵，<br/>再按 Enter 或空白鍵"]
   press -->|"pbs-diagram-target"| quote["diagramQuote：<br/>[Diagram 2, type] kind: text"]
   quote --> panel["意見面板<br/>每個元素一筆"]
   panel -->|"Send：quote 與留言"| msg["encodeAnswer：<br/>> quote，接著是留言"]
@@ -760,9 +760,9 @@ flowchart TD
 <details>
 <summary>quote 怎麼讀</summary>
 
-quote 以圖在頁面所有圖中的位置與它的種類稱呼這張圖，再接元素：`> [Diagram 2, stateDiagram-v2] edge: Paid → Refunded "money back"`、`> [Diagram 1, flowchart] node: Check`、`> [Diagram 1, flowchart] group: Review`。節點就是它的標籤（狀態圖的 `[*]` 寫成 `start` 與 `end`）；邊是 `<from> → <to>`，有標籤時加上用雙引號括起來的邊標籤；群組是 subgraph 的標題。標籤裡的 Mermaid 實體碼（`#quot;`、`#35;`）會寫成那個字元。quote 是給人讀的，不是要剖析的文法。
+quote 以圖在頁面所有圖中的位置與它的種類稱呼這張圖，再接元素：`> [Diagram 2, stateDiagram-v2] edge: Paid → Refunded "money back"`、`> [Diagram 1, flowchart] node: Check`、`> [Diagram 1, flowchart] group: Review`。節點就是它的標籤（狀態圖的 `[*]` 寫成 `start` 與 `end`）；邊是 `<from> → <to>`，兩端用它們各自 quote 的名稱，有標籤時加上用雙引號括起來的邊標籤；群組是 subgraph 的標題。標籤裡的 Mermaid 實體碼（`#quot;`、`#35;`）會寫成那個字元。quote 是給人讀的，不是要剖析的文法。
 
-quote 只指一個元素：只有圖裡兩個元素讀起來一樣時，才會加後綴，也就是節點或群組的 id（`node: Check (B)`、`group: One (S1)`）、邊兩端的 id（`edge: Check → Done (A → C)`），仍然一樣的邊再加上依繪製順序的編號（`edge: A → B "retry" #2`）。狀態圖有多個 `[*]` 時，複合狀態裡面的每一個會指名那個狀態：`node: start (in Active)`、`edge: Busy → end (in Active)`；最外層的仍是 `start`。它是 `feedback` 答案裡一般的 `quote`，所以訊息的形狀與選取文字時相同，同一個元素也只會加進面板一次。在 frame 中執行的頁面（`.html`、`.tsx`）只能對選取的文字留言。只有流程圖與狀態圖有目標；其他圖種維持純圖片。
+quote 只指一個元素：只有圖裡兩個元素讀起來一樣時，才會加後綴，也就是節點或群組的 id（`node: Check (B)`、`group: One (S1)`），以及旁邊有名為 `start` 或 `end` 的狀態時，`[*]` 加上的 `([*])`（`node: start ([*])`），那個狀態則保留原名。邊的兩端照它們的 quote 來讀（`edge: Check (A) → Done`）；只有兩端跨種類讀起來一樣（節點與群組同名）的邊，才加上兩端的 id（`edge: One → B (S → B)`），仍然一樣的邊再加上依繪製順序的編號（`edge: A → B "retry" #2`）。狀態圖有多個 `[*]` 時，複合狀態裡面的每一個會照那個狀態的 quote 指名它：`node: start (in Active)`、`edge: Busy → end (in Active)`，兩個狀態同名時則是 `node: start (in Work (W1))`；最外層的仍是 `start`。它是 `feedback` 答案裡一般的 `quote`，所以訊息的形狀與選取文字時相同，同一個元素也只會加進面板一次。草稿為每則圖的 quote 記住它的圖的原始碼，所以 agent 的修改造成重新載入後，前面多了或少了圖時，quote 會指出那張圖的新位置；自己的原始碼改了的圖，則保留 quote 原本的位置。在 frame 中執行的頁面（`.html`、`.tsx`）只能對選取的文字留言。只有流程圖與狀態圖有目標；其他圖種維持純圖片。
 
 </details>
 
