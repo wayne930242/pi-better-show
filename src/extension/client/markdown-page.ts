@@ -60,7 +60,16 @@ export function mountPage(options: PageOptions): { destroy: () => void } {
 
   const onDiagramTarget = (event: Event): void => {
     const target = (event as CustomEvent<{ kind: string; text: string }>).detail;
-    if (event.target instanceof Element) feedback.comment(diagramQuote(event.target, target), diagramRef(event.target));
+    // The path runs from the element's own button, inside the diagram's shadow tree, out through the diagram.
+    const path = event.composedPath();
+    const diagram = path.find((node) => node instanceof Element && node.localName === "pbs-diagram");
+    if (!(diagram instanceof Element)) return;
+    const [button] = path;
+    feedback.comment(diagramQuote(diagram, target), {
+      ref: diagramRef(diagram),
+      // Escape in the panel returns there.
+      back: button instanceof HTMLElement || button instanceof SVGElement ? button : undefined,
+    });
   };
 
   document.addEventListener("pbs-answer", onAnswer);

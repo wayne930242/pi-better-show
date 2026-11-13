@@ -114,9 +114,9 @@ export function mountFeedback(options: FeedbackOptions): {
   /**
    * Adds `quote` to the panel as a commented target at once and opens the panel on its comment box; for what cannot be
    * selected as text (a diagram's node or edge). A target already in the panel is not added twice, only focused.
-   * `ref` is kept with the draft for `requote`.
+   * `ref` is kept with the draft for `requote`; Escape in the panel returns focus to `back`, the control it came from.
    */
-  comment: (quote: string, ref?: string) => void;
+  comment: (quote: string, from?: { ref?: string; back?: HTMLElement | SVGElement }) => void;
   destroy: () => void;
 } {
   const { words, storage, storageKey } = options;
@@ -184,8 +184,16 @@ export function mountFeedback(options: FeedbackOptions): {
     overall = overallBox.value;
     save();
   });
+  /** Where Escape in the panel returns focus: the diagram element a comment was opened from. */
+  let back: HTMLElement | SVGElement | undefined;
   toggle.addEventListener("click", () => {
+    back = undefined;
     panel.hidden = !panel.hidden;
+  });
+  panel.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape" || !back?.isConnected) return;
+    event.preventDefault();
+    back.focus();
   });
 
   let pending = "";
@@ -218,7 +226,9 @@ export function mountFeedback(options: FeedbackOptions): {
     panel.hidden = false;
     list.querySelectorAll("textarea").item(index)?.focus();
   };
-  const comment = (quote: string, ref?: string): void => {
+  const comment = (quote: string, from: { ref?: string; back?: HTMLElement | SVGElement } = {}): void => {
+    const { ref } = from;
+    back = from.back;
     const known = items.findIndex((item) => item.quote === quote);
     if (known === -1) {
       items.push(ref ? { quote, comment: "", ref } : { quote, comment: "" });
@@ -228,6 +238,7 @@ export function mountFeedback(options: FeedbackOptions): {
     open(known === -1 ? items.length - 1 : known);
   };
   add.addEventListener("click", () => {
+    back = undefined;
     const quote = pending;
     pending = "";
     add.hidden = true;

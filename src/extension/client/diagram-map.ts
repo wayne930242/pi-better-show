@@ -147,6 +147,61 @@ function settle(drafts: Draft[], names: Map<string, string>, tags: Map<string, s
   return targets;
 }
 
+/** The points a shape's geometry spans, in the image's coordinates. */
+function pointsOf({ tag, attrs }: DiagramShape): [number, number][] {
+  const at = (name: string): number => Number(attrs[name]);
+  const box = (x: number, y: number, rx: number, ry: number): [number, number][] => [
+    [x - rx, y - ry],
+    [x + rx, y + ry],
+  ];
+  if (tag === "rect")
+    return [
+      [at("x"), at("y")],
+      [at("x") + at("width"), at("y") + at("height")],
+    ];
+  if (tag === "circle") return box(at("cx"), at("cy"), at("r"), at("r"));
+  if (tag === "ellipse") return box(at("cx"), at("cy"), at("rx"), at("ry"));
+  // A polygon's or polyline's points; a path's coordinates, near enough to place it.
+  const values = (attrs.points ?? attrs.d ?? "").match(/-?\d*\.?\d+(?:e-?\d+)?/gi)?.map(Number) ?? [];
+  return values.flatMap((x, index) =>
+    index % 2 === 0 ? [[x, values[index + 1] ?? Number.NaN] as [number, number]] : [],
+  );
+}
+
+/**
+ * The targets in reading order, the order arrow keys move through them: along the flow (down, or across in a chart
+ * whose edges run more across than down), then across it, so an edge comes between the elements it joins.
+ */
+function inReadingOrder(targets: DiagramTarget[]): DiagramTarget[] {
+  let across = 0;
+  let down = 0;
+  for (const target of targets) {
+    const line = target.kind === "edge" && target.shapes[0] ? pointsOf(target.shapes[0]) : [];
+    const [first, last] = [line[0], line.at(-1)];
+    if (!first || !last) continue;
+    across += Math.abs(last[0] - first[0]);
+    down += Math.abs(last[1] - first[1]);
+  }
+  const [along, side] = across > down ? [0, 1] : [1, 0];
+  const placed = targets.map((target, index) => {
+    const points = target.shapes.flatMap(pointsOf).filter((point) => point.every(Number.isFinite));
+    const centre = [0, 1].map((axis) => {
+      const values = points.map((point) => point[axis] ?? 0);
+      return (Math.min(...values) + Math.max(...values)) / 2;
+    });
+    return { target, index, centre: points.length > 0 ? centre : undefined };
+  });
+  // Within half a unit is the same rank: the layout's own arithmetic leaves crumbs.
+  const compare = (a: number[], b: number[], axis: number): number =>
+    Math.abs((a[axis] ?? 0) - (b[axis] ?? 0)) < 0.5 ? 0 : (a[axis] ?? 0) - (b[axis] ?? 0);
+  return placed
+    .sort((a, b) => {
+      if (!a.centre || !b.centre) return (a.centre ? -1 : b.centre ? 1 : 0) || a.index - b.index;
+      return compare(a.centre, b.centre, along) || compare(a.centre, b.centre, side) || a.index - b.index;
+    })
+    .map(({ target }) => target);
+}
+
 /**
  * What a reader can point at in the drawing, each named in the diagram's own words and unique within its kind. Groups
  * are named first, then nodes (a `[*]` among several is scoped by the composite state around it: `start (in Active)`),
@@ -226,8 +281,7 @@ export function diagramMap(svg: Element): DiagramMap | undefined {
     });
   }
 
-  // Later targets sit above earlier ones: groups below edges below nodes.
-  const targets = [...groups, ...disambiguated(edges), ...nodes];
+  const targets = inReadingOrder([...groups, ...disambiguated(edges), ...nodes]);
   return targets.length > 0 ? { viewBox, targets } : undefined;
 }
 

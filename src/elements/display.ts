@@ -283,6 +283,7 @@ export class PbsDiagram extends PbsElement<MermaidData> {
   /**
    * When the host can read the drawing (`diagramMap`), lays its nodes and edges over the image as buttons: a click, or
    * Enter or Space on a focused one, dispatches `pbs-diagram-target` with the element in the diagram's own words.
+   * The diagram is one tab stop; arrow keys move through its elements in the map's order (Home and End jump).
    * The overlay arrives after the image; a diagram the host cannot read stays a plain image.
    */
   #addTargets(frame: HTMLElement, url: string): void {
@@ -306,8 +307,9 @@ export class PbsDiagram extends PbsElement<MermaidData> {
       edge: this.t("diagramEdge"),
       group: this.t("diagramGroup"),
     };
-    const pick = (target: DiagramTarget): void => {
-      this.dispatchEvent(
+    // Dispatched from the button itself, so a host that moves focus away can find its way back (`composedPath()[0]`).
+    const pick = (hit: Element, target: DiagramTarget): void => {
+      hit.dispatchEvent(
         new CustomEvent("pbs-diagram-target", {
           bubbles: true,
           composed: true,
@@ -315,30 +317,51 @@ export class PbsDiagram extends PbsElement<MermaidData> {
         }),
       );
     };
-    const hits = map.targets.map((target) => {
-      const hit = svg(
+    const hits = map.targets.map((target, index) =>
+      svg(
         "g",
         {
           class: "hit",
           role: "button",
-          tabindex: 0,
+          tabindex: index === 0 ? 0 : -1,
           "data-kind": target.kind,
           "aria-label": this.t("diagramComment", { kind: words[target.kind], text: target.text }),
         },
         ...target.shapes.map((shape) => svg(shape.tag, shape.attrs)),
-      );
-      hit.addEventListener("click", () => pick(target));
-      hit.addEventListener("keydown", (event) => {
-        if (event.key !== "Enter" && event.key !== " ") return;
-        event.preventDefault();
-        pick(target);
+      ),
+    );
+    const moves: Record<string, (at: number) => number> = {
+      ArrowDown: (at) => at + 1,
+      ArrowRight: (at) => at + 1,
+      ArrowUp: (at) => at - 1,
+      ArrowLeft: (at) => at - 1,
+      Home: () => 0,
+      End: () => hits.length - 1,
+    };
+    for (const [index, hit] of hits.entries()) {
+      const target = map.targets[index] as DiagramTarget;
+      // The one tab stop is where the reader last was.
+      hit.addEventListener("focus", () => {
+        for (const other of hits) other.setAttribute("tabindex", other === hit ? "0" : "-1");
       });
-      return hit;
-    });
+      hit.addEventListener("click", () => pick(hit, target));
+      hit.addEventListener("keydown", (event) => {
+        const move = moves[event.key];
+        if (move) {
+          event.preventDefault();
+          (hits[Math.min(hits.length - 1, Math.max(0, move(index)))] as SVGElement | undefined)?.focus();
+        } else if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          pick(hit, target);
+        }
+      });
+    }
+    // Later buttons sit above earlier ones: groups below edges below nodes, so a node inside a group is the node.
+    const layers: DiagramTarget["kind"][] = ["group", "edge", "node"];
     return svg(
       "svg",
       { class: "targets", viewBox: map.viewBox, role: "group", "aria-label": this.t("diagram") },
-      ...hits,
+      ...layers.flatMap((kind) => hits.filter((_, index) => map.targets[index]?.kind === kind)),
     );
   }
 }

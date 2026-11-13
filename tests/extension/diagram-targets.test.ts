@@ -154,6 +154,35 @@ describe("diagramMap: a state diagram's [*] is start or end, scoped when there a
   });
 });
 
+describe("diagramMap: targets come in reading order", () => {
+  test("top to bottom, an edge between the elements it joins, and left to right across a row", () => {
+    expect(texts(FLOW)).toEqual([
+      "node: Start",
+      'edge: Start → Check "yes"',
+      "node: Check",
+      "edge: Check → Ok?",
+      "node: Ok?",
+      'edge: Ok? → Fix "no"',
+      "group: Group",
+      "node: Fix",
+    ]);
+    expect(texts("flowchart TD\n A --> B\n A --> C\n B --> D\n C --> D")).toEqual([
+      "node: A",
+      "edge: A → B",
+      "edge: A → C",
+      "node: B",
+      "node: C",
+      "edge: B → D",
+      "edge: C → D",
+      "node: D",
+    ]);
+  });
+
+  test("a chart that flows across reads left to right", () => {
+    expect(texts("flowchart LR\n A --> B --> C")).toEqual(["node: A", "edge: A → B", "node: B", "edge: B → C", "node: C"]);
+  });
+});
+
 describe("diagramMap: labels are read as people wrote them", () => {
   test("Mermaid entity codes are decoded", () => {
     const targets = texts('flowchart TD\n A["say #quot;hi#quot; #35;1"] -->|"a #amp; b"| B');
@@ -192,11 +221,10 @@ describe("pbs-diagram with diagramMap: clicking an element reports its words", (
     ]);
   });
 
-  test("every hit area is focusable and answers Enter and Space", async () => {
+  test("every hit area answers Enter and Space", async () => {
     const seen: unknown[] = [];
     const el = await mountDiagram(FLOW, seen);
     const node = hit(el, "Check");
-    expect(node.getAttribute("tabindex")).toBe("0");
     key(node, "Enter");
     key(node, " ");
     key(node, "a");
@@ -204,6 +232,46 @@ describe("pbs-diagram with diagramMap: clicking an element reports its words", (
       { kind: "node", text: "Check" },
       { kind: "node", text: "Check" },
     ]);
+  });
+
+  test("the diagram is one tab stop, its first element in reading order", async () => {
+    const el = await mountDiagram(FLOW, []);
+    const stops = [...root(el).querySelectorAll('[tabindex="0"]')];
+    expect(stops.map((stop) => stop.getAttribute("aria-label"))).toEqual(["Comment on node: Start"]);
+    expect(root(el).querySelectorAll('[role="button"][tabindex="-1"]')).toHaveLength(7);
+  });
+
+  test("arrow keys move through the elements in reading order; Home and End jump; the tab stop follows", async () => {
+    const el = await mountDiagram(FLOW, []);
+    const focused = () => root(el).activeElement?.getAttribute("aria-label")?.replace("Comment on ", "");
+    (hit(el, "Start") as SVGElement).focus();
+    const visited = [focused()];
+    for (const name of ["ArrowDown", "ArrowRight", "ArrowDown", "ArrowDown", "ArrowDown", "ArrowDown", "ArrowDown"]) {
+      const at = root(el).activeElement;
+      if (at) key(at, name);
+      visited.push(focused());
+    }
+    expect(visited).toEqual(texts(FLOW));
+    const at = () => root(el).activeElement as Element;
+    key(at(), "ArrowDown");
+    expect(focused()).toBe("node: Fix");
+    key(at(), "ArrowUp");
+    key(at(), "ArrowLeft");
+    expect(focused()).toBe("edge: Ok? → Fix \"no\"");
+    key(at(), "Home");
+    expect(focused()).toBe("node: Start");
+    key(at(), "End");
+    expect(focused()).toBe("node: Fix");
+    expect([...root(el).querySelectorAll('[tabindex="0"]')]).toEqual([at()]);
+    // A click moves the tab stop too.
+    (hit(el, "Check") as SVGElement).focus();
+    expect([...root(el).querySelectorAll('[tabindex="0"]')]).toEqual([hit(el, "Check")]);
+  });
+
+  test("the overlay draws groups below edges below nodes, whatever the reading order", async () => {
+    const el = await mountDiagram(FLOW, []);
+    const kinds = [...root(el).querySelectorAll('[role="button"]')].map((hit) => hit.getAttribute("data-kind"));
+    expect(kinds).toEqual(["group", "edge", "edge", "edge", "node", "node", "node", "node"]);
   });
 
   test("the overlay shares the image's coordinates, adds no style attribute, and leaves the image in place", async () => {

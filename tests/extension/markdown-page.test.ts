@@ -1,8 +1,11 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import type { Answer } from "../../src/core/types.ts";
+import { configure, resetConfiguration } from "../../src/elements/index.ts";
+import { diagramMap } from "../../src/extension/client/diagram-map.ts";
 import { wordsFor } from "../../src/extension/client/feedback.ts";
 import { mountPage } from "../../src/extension/client/markdown-page.ts";
-import { cleanup, mount } from "../elements/helpers.ts";
+import { mermaidSvg } from "../../src/server/index.ts";
+import { cleanup, key, mount, root } from "../elements/helpers.ts";
 
 const FLOW = "flowchart TD\n A[Check] --> B[Done]";
 const STATE = "stateDiagram-v2\n [*] --> Open";
@@ -22,6 +25,7 @@ afterEach(() => {
   page?.destroy();
   page = undefined;
   cleanup();
+  resetConfiguration();
 });
 
 /** Loads the page with these diagrams, in order, as the server renders it. */
@@ -83,5 +87,36 @@ describe("a draft's diagram quote across the reload an agent's edit causes", () 
     pick(flow, "node", "Check");
     load(storage, [STATE, `${FLOW}\n B --> C[Ship]`]);
     expect(quotes()).toEqual(["[Diagram 2, flowchart] node: Check"]);
+  });
+});
+
+describe("a diagram comment from the keyboard", () => {
+  test("Enter opens the panel on the element's comment box, and Escape there returns to the element", async () => {
+    configure({
+      diagramUrl: () => "/d.svg",
+      diagramMap: async (url) =>
+        url === "/d.svg"
+          ? diagramMap(
+              new DOMParser().parseFromString(mermaidSvg(FLOW, { scheme: "light" }), "image/svg+xml").documentElement,
+            )
+          : undefined,
+    });
+    const [flow] = load(session(), [FLOW]);
+    if (!flow) throw new Error("no diagram");
+    await Bun.sleep(5);
+    const done = [...root(flow).querySelectorAll<SVGElement>('[role="button"]')].find(
+      (hit) => hit.getAttribute("aria-label") === "Comment on node: Done",
+    );
+    if (!done) throw new Error("no hit area for Done");
+    done.focus();
+    key(done, "Enter");
+    const box = document.querySelector<HTMLTextAreaElement>(".pbs-fb-item textarea");
+    expect(quotes()).toEqual(["[Diagram 1, flowchart] node: Done"]);
+    expect(document.activeElement).toBe(box);
+    if (!box) throw new Error("no comment box");
+    key(box, "Escape");
+    expect(document.activeElement).toBe(flow);
+    expect(root(flow).activeElement).toBe(done);
+    expect(root(flow).querySelectorAll('[tabindex="0"]')).toHaveLength(1);
   });
 });
