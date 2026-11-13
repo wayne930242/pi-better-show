@@ -176,8 +176,8 @@ describe("the page server's security", () => {
       method: "POST",
       headers: { "content-type": "application/json", origin: new URL(t.server.base).origin },
       chunks,
-    }).catch(() => ({ status: 0 }));
-    expect([413, 0]).toContain(streamed.status);
+    });
+    expect(streamed.status).toBe(413);
     expect(t.posts).toHaveLength(0);
     const small = await postJson(`${t.server.base}/answer`, {
       answerId: "1",
@@ -195,8 +195,20 @@ describe("the page server's security", () => {
       method: "POST",
       headers: { "content-type": "application/json", origin: new URL(t.server.base).origin },
       chunks,
-    }).catch(() => ({ status: 0 }));
-    expect([413, 0]).toContain(streamed.status);
+    });
+    expect(streamed.status).toBe(413);
+    expect(t.posts).toHaveLength(0);
+  });
+
+  test("a refused answer is read only so far: one that goes on past 16 times the cap is cut off", async () => {
+    const t = await setup({ "doc/a.md": "# A" }, ["doc/a.md"]);
+    const chunks = Array.from({ length: 17 }, () => "z".repeat(MAX_ANSWER_BYTES));
+    const cut = http(`${t.server.base}/answer`, {
+      method: "POST",
+      headers: { "content-type": "application/json", origin: new URL(t.server.base).origin },
+      chunks,
+    });
+    await expect(cut).rejects.toThrow();
     expect(t.posts).toHaveLength(0);
   });
 

@@ -16,6 +16,8 @@ import { escapeHtml, langOf, pageShell, renderBody } from "./render.ts";
 export const PAGE_IDLE_MS = 30_000;
 /** The largest answer the page server reads. */
 export const MAX_ANSWER_BYTES = 1_000_000;
+/** How much of a refused answer the server reads and drops before it answers 413; a longer one is cut off with no reply. */
+const MAX_REFUSED_BYTES = 16 * MAX_ANSWER_BYTES;
 /** The longest Mermaid source the diagram route draws: it travels in the image URL, which node limits to 16 KB. */
 const MAX_DIAGRAM_SOURCE = 6000;
 
@@ -182,26 +184,28 @@ export function createPageServer(options: PageServerOptions): Promise<PageServer
     }
   };
 
+  /**
+   * Reads a request body of at most `MAX_ANSWER_BYTES`. A longer one is refused with 413 once the client has sent it:
+   * closing while the client still sends resets the connection, and the reset loses the 413 (RFC 9112, 9.6). What comes
+   * past the cap is dropped, not kept; past `MAX_REFUSED_BYTES` the connection is cut.
+   */
   const body = (request: IncomingMessage, response: ServerResponse, then: (text: string) => void) => {
-    if (Number(request.headers["content-length"] ?? 0) > MAX_ANSWER_BYTES) {
-      response.writeHead(413, { connection: "close", "content-security-policy": RAW_POLICY });
-      response.end();
-      return;
-    }
+    let refused = Number(request.headers["content-length"] ?? 0) > MAX_ANSWER_BYTES;
     let text = "";
     let bytes = 0;
     request.setEncoding("utf8");
     request.on("data", (chunk: string) => {
-      text += chunk;
       bytes += Buffer.byteLength(chunk);
-      if (bytes > MAX_ANSWER_BYTES) {
-        response.writeHead(413, { connection: "close", "content-security-policy": RAW_POLICY });
-        response.end();
-        request.destroy();
-      }
+      if (bytes > MAX_ANSWER_BYTES) refused = true;
+      if (bytes > MAX_REFUSED_BYTES) request.destroy();
+      text = refused ? "" : text + chunk;
     });
     request.on("end", () => {
-      if (bytes > MAX_ANSWER_BYTES) return;
+      if (refused) {
+        response.writeHead(413, { connection: "close", "content-security-policy": RAW_POLICY });
+        response.end();
+        return;
+      }
       // This runs outside `handle`'s catch: a throw here would be an uncaught exception in pi.
       try {
         then(text);
