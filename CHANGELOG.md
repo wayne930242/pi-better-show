@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+## 0.7.1 - 2026-11-13
+
+Fixes from the reviews of diagram comments; the `feedback` answer and the quote format are unchanged.
+
+- A diagram is one tab stop instead of one per node, edge, and group. The arrow keys move through its elements in reading order (along the flow, then across it, an edge between the elements it joins), Home and End jump to the first and last, and Tab comes back to the element last focused. After Enter opens the panel on the comment box, Escape returns to the element. `diagramMap` lists targets in that order, and `pbs-diagram` draws groups below edges below nodes whatever the order. `pbs-diagram-target` is dispatched from the element's button, so `composedPath()[0]` is where a host returns focus.
+- A diagram comment in the panel's draft finds its diagram again after the reload an agent's edit causes: when diagrams were added or removed before it, the quote names the new position, in the panel and in the message. A diagram whose own source changed keeps the position the quote has. The draft keeps the diagram's source beside the quote; it is never sent.
+- Quotes no longer show renderer ids. Two composite states with one title scope their inner `[*]` as their own quotes read (`node: start (in Work (W1))`, before `start (in Work) (_start2)`); a `[*]` beside a state named `start` or `end` reads `start ([*])` and the state keeps its plain name (before `start (_start)` and `start (start)`).
+- An edge names its ends as their own quotes do: `edge: Check (A) → Done` instead of `edge: Check → Done (A → C)`, and `edge: One (S1) → One (S2)` instead of `edge: One → One`. Endpoint ids remain only for ends that read alike across kinds (a node and a group with one title).
+- The page server answers 413 to an answer over 1 MB after reading what the client sends (dropping it), and cuts the connection only past 16 MB. Before, it closed while the client was still sending, and the reset often lost the 413: the panel showed a network error instead.
+
 ## 0.7.0 - 2026-11-12
 
 Minor bump: `Configuration` has a new optional `diagramMap` hook and `FeedbackWords` a new `hintDiagram` word (hosts that build their own words add it); the `feedback` answer's shape is unchanged.

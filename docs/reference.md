@@ -628,7 +628,7 @@ With `diagramMap` set, a diagram's nodes and edges become buttons a reader can c
 <details>
 <summary>What the host provides</summary>
 
-With `diagramMap` set, `pbs-diagram` lays a transparent button over each node, edge (its line and its label box), and subgraph header of the image. `diagramMap(url)` receives the URL `diagramUrl` returned and resolves to a `DiagramMap`: `{ viewBox, targets: [{ kind: "node" | "edge" | "group", text, shapes: [{ tag, attrs }] }] }`, shapes in the image's own coordinates and carrying geometry attributes only. The host reads and parses the drawing, because elements never parse markup; the extension's page does it for the SVG `mermaidSvg` draws (`g.node`, `.edge`, `g.edge-label`, `g.subgraph` with their `data-*` labels: flowcharts and state diagrams; other diagram types give no targets and stay images). A click, or Enter or Space on a focused button, dispatches `pbs-diagram-target` (bubbles, composed) with `detail: { kind, text }`. The buttons are tab stops with an `aria-label` ("Comment on edge: …"), and show a hover and focus tint drawn over the image, so nothing moves.
+With `diagramMap` set, `pbs-diagram` lays a transparent button over each node, edge (its line and its label box), and subgraph header of the image. `diagramMap(url)` receives the URL `diagramUrl` returned and resolves to a `DiagramMap`: `{ viewBox, targets: [{ kind: "node" | "edge" | "group", text, shapes: [{ tag, attrs }] }] }`, shapes in the image's own coordinates and carrying geometry attributes only. The host reads and parses the drawing, because elements never parse markup; the extension's page does it for the SVG `mermaidSvg` draws (`g.node`, `.edge`, `g.edge-label`, `g.subgraph` with their `data-*` labels: flowcharts and state diagrams; other diagram types give no targets and stay images). The targets come in reading order, the order the arrow keys follow; whatever the order, groups are drawn below edges and edges below nodes. A click, or Enter or Space on a focused button, dispatches `pbs-diagram-target` (bubbles, composed) with `detail: { kind, text }`, from the button itself, so `composedPath()[0]` is where a host returns focus. The diagram is one tab stop, on the button last focused (the first at the start); the arrow keys move to the next or previous button, Home and End to the first or last. Each button has an `aria-label` ("Comment on edge: …") and shows a hover and focus tint drawn over the image, so nothing moves.
 
 </details>
 
@@ -681,7 +681,7 @@ Then `/reload` in a running session.
 
 `show_doc({paths, reason, view})` returns at once, without waiting for you; whatever you do on the page or in the editor reaches the agent later, as a message.
 
-<!-- Diagram: src/extension/tool.ts (showDocTool), src/extension/controller.ts (show, showPages, ensureServer, decide, deliver), src/extension/server.ts (postAnswer, fromHostPage, sendEvents), src/extension/client/page.ts, src/core/answer.ts (encodeAnswer). -->
+<!-- Diagram: src/extension/tool.ts (showDocTool), src/extension/controller.ts (show, showPages, ensureServer, decide, deliver), src/extension/server.ts (postAnswer, fromHostPage, sendEvents), src/extension/client/page.ts, src/extension/client/markdown-page.ts (mountPage), src/core/answer.ts (encodeAnswer). -->
 
 ```mermaid
 sequenceDiagram
@@ -738,7 +738,7 @@ Diagrams are drawn on the server, in the page's colour scheme. Images and links 
 
 ### Feedback panel
 
-Select a passage to comment on it, or click a node, an edge, or a subgraph title in a flowchart or state diagram (Tab to it, then Enter or Space, from the keyboard).
+Select a passage to comment on it, or click a node, an edge, or a subgraph title in a flowchart or state diagram (from the keyboard: Tab to the diagram, the arrow keys to the element, then Enter or Space; Escape in the panel goes back to it).
 The panel collects comments and an overall note and sends them in one message; its drafts survive the reload an agent's edit causes.
 It is an ordinary `feedback` answer: each quote with its comment, then `Overall: …`.
 
@@ -746,12 +746,12 @@ It is an ordinary `feedback` answer: each quote with its comment, then `Overall:
 
 A diagram element is quoted in the diagram's own words, so the agent can find it in the source it wrote.
 
-<!-- Diagram: src/extension/client/diagram-map.ts (diagramMap, namesOf, disambiguated, diagramQuote), src/elements/display.ts (pbs-diagram-target), src/extension/client/page.ts, src/extension/client/feedback.ts (feedbackAnswer), src/core/answer.ts (feedbackText). -->
+<!-- Diagram: src/extension/client/diagram-map.ts (diagramMap, settle, disambiguated, inReadingOrder, diagramQuote, diagramRef, requoteDiagram), src/elements/display.ts (pbs-diagram-target), src/extension/client/markdown-page.ts (mountPage), src/extension/client/feedback.ts (feedbackAnswer, requote), src/core/answer.ts (feedbackText). -->
 
 ```mermaid
 flowchart TD
   svg["Diagram SVG<br/>from /diagram.svg"] -->|"fetchDiagramMap"| map["Targets: node, edge,<br/>group, with their shapes"]
-  map -->|"buttons over the image"| press["Click, or Tab and<br/>Enter or Space"]
+  map -->|"buttons over the image"| press["Click, or Tab, arrows,<br/>Enter or Space"]
   press -->|"pbs-diagram-target"| quote["diagramQuote:<br/>[Diagram 2, type] kind: text"]
   quote --> panel["Feedback panel<br/>one entry per element"]
   panel -->|"Send: quote and comment"| msg["encodeAnswer:<br/>> quote, then the comment"]
@@ -760,9 +760,9 @@ flowchart TD
 <details>
 <summary>How a quote reads</summary>
 
-A quote names the diagram by its position among the page's diagrams and its type, then the element: `> [Diagram 2, stateDiagram-v2] edge: Paid → Refunded "money back"`, `> [Diagram 1, flowchart] node: Check`, `> [Diagram 1, flowchart] group: Review`. A node is its label (`start` and `end` for a state diagram's `[*]`); an edge is `<from> → <to>`, with the edge's label in double quotes when it has one; a group is the subgraph's title. Mermaid entity codes in a label (`#quot;`, `#35;`) are written as the character. The quote is for a reader, not a grammar to parse.
+A quote names the diagram by its position among the page's diagrams and its type, then the element: `> [Diagram 2, stateDiagram-v2] edge: Paid → Refunded "money back"`, `> [Diagram 1, flowchart] node: Check`, `> [Diagram 1, flowchart] group: Review`. A node is its label (`start` and `end` for a state diagram's `[*]`); an edge is `<from> → <to>`, its ends named as their own quotes name them, with the edge's label in double quotes when it has one; a group is the subgraph's title. Mermaid entity codes in a label (`#quot;`, `#35;`) are written as the character. The quote is for a reader, not a grammar to parse.
 
-A quote names one element: only when two elements of a diagram would read alike does it add a suffix, a node or group's id (`node: Check (B)`, `group: One (S1)`), an edge's endpoint ids (`edge: Check → Done (A → C)`), and for edges still alike a number in drawing order (`edge: A → B "retry" #2`). When a state diagram has several `[*]`, each inside a composite state names that state: `node: start (in Active)`, `edge: Busy → end (in Active)`; the outer one stays `start`. It is an ordinary `quote` in the `feedback` answer, so the message has the same shape as one for a selection, and the same element is added to the panel only once. Pages that run in a frame (`.html`, `.tsx`) comment on selected text only. Only flowcharts and state diagrams have targets; other diagram types stay plain images.
+A quote names one element: only when two elements of a diagram would read alike does it add a suffix, a node or group's id (`node: Check (B)`, `group: One (S1)`), and `([*])` for a `[*]` beside a state named `start` or `end` (`node: start ([*])`), which keeps its plain name. An edge's ends read as their quotes do (`edge: Check (A) → Done`); only an edge whose ends read alike across kinds, a node and a group with one title, adds their ids (`edge: One → B (S → B)`), and edges still alike a number in drawing order (`edge: A → B "retry" #2`). When a state diagram has several `[*]`, each inside a composite state names that state as its quote does: `node: start (in Active)`, `edge: Busy → end (in Active)`, and `node: start (in Work (W1))` when two states share a title; the outer one stays `start`. It is an ordinary `quote` in the `feedback` answer, so the message has the same shape as one for a selection, and the same element is added to the panel only once. A draft keeps each diagram quote's diagram by its source, so after the reload an agent's edit causes, a quote names the diagram's new position when diagrams were added or removed before it; a diagram whose own source changed keeps the position the quote has. Pages that run in a frame (`.html`, `.tsx`) comment on selected text only. Only flowcharts and state diagrams have targets; other diagram types stay plain images.
 
 </details>
 

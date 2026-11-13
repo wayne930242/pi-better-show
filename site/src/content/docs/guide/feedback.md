@@ -27,7 +27,7 @@ Overall: Go with SQLite.
 
 ## Comment on a diagram
 
-In a flowchart or a state diagram, click a node, an edge (its line or its label), or a subgraph title. From the keyboard, Tab to it and press Enter or Space. It joins the panel as a quote in the diagram's own words, so the agent can find it in the source it wrote.
+In a flowchart or a state diagram, click a node, an edge (its line or its label), or a subgraph title. From the keyboard, Tab to the diagram, move to the element with the arrow keys, and press Enter or Space; Escape in the panel takes you back to it. It joins the panel as a quote in the diagram's own words, so the agent can find it in the source it wrote.
 
 ```text
 > [Diagram 2, stateDiagram-v2] edge: Paid → Refunded "money back"
@@ -37,9 +37,9 @@ In a flowchart or a state diagram, click a node, an edge (its line or its label)
 <summary>How a quote reads</summary>
 
 - It starts with the diagram's position among the page's diagrams and its type, then `node: <label>`, `edge: <from> → <to>` (with the edge's label in quotes), or `group: <title>`.
-- A quote names exactly one element. When two elements would read alike, it adds the node's id (`node: Check (B)`), an edge's endpoint ids (`edge: Check → Done (A → C)`), or a number in drawing order (`#2`).
-- A state diagram's `[*]` reads `start` or `end`, scoped by its composite state when there are several (`node: start (in Active)`).
-- The same element is added to the panel only once.
+- A quote names exactly one element. When two elements would read alike, it adds the node's id (`node: Check (B)`) or a number in drawing order (`#2`), and an edge names its ends as their own quotes do (`edge: Check (A) → Done`).
+- A state diagram's `[*]` reads `start` or `end`, scoped by its composite state when there are several (`node: start (in Active)`), and `start ([*])` beside a state named `start`.
+- The same element is added to the panel only once. When the agent's edit reloads the page with diagrams added or removed, a draft's quote names its diagram's new position.
 - Only flowcharts and state diagrams have targets; other diagrams stay plain images.
 
 [The reference](/pi-better-show/reference/the-pi-extension/#diagram-comments) draws how a click becomes a quote.
