@@ -3,6 +3,8 @@ import type { Answer } from "../../core/types.ts";
 export interface FeedbackItem {
   quote: string;
   comment: string;
+  /** Where a quote that is not selected text came from, for `requote`; kept with the draft, never sent. */
+  ref?: string;
 }
 
 export interface FeedbackWords {
@@ -77,6 +79,11 @@ export interface FeedbackOptions {
   watchDocument?: boolean;
   /** Whether the page's diagrams can be commented on (the hint says so); a host calls `comment` for them. */
   diagrams?: boolean;
+  /**
+   * Rewrites a restored draft's quote that came with a `ref` for the page as it is now: the reload an agent's edit causes
+   * may have moved what the quote names.
+   */
+  requote?: (quote: string, ref: string) => string;
 }
 
 /** A passage to comment on, and where the Add button goes (viewport coordinates of the panel's document). */
@@ -107,8 +114,9 @@ export function mountFeedback(options: FeedbackOptions): {
   /**
    * Adds `quote` to the panel as a commented target at once and opens the panel on its comment box; for what cannot be
    * selected as text (a diagram's node or edge). A target already in the panel is not added twice, only focused.
+   * `ref` is kept with the draft for `requote`.
    */
-  comment: (quote: string) => void;
+  comment: (quote: string, ref?: string) => void;
   destroy: () => void;
 } {
   const { words, storage, storageKey } = options;
@@ -119,7 +127,10 @@ export function mountFeedback(options: FeedbackOptions): {
       items?: FeedbackItem[];
       overall?: string;
     } | null;
-    items = saved?.items ?? [];
+    const { requote } = options;
+    items = (saved?.items ?? []).map((item) =>
+      item.ref && requote ? { ...item, quote: requote(item.quote, item.ref) } : item,
+    );
     overall = saved?.overall ?? "";
   } catch {
     // A draft that cannot be read is dropped.
@@ -207,10 +218,10 @@ export function mountFeedback(options: FeedbackOptions): {
     panel.hidden = false;
     list.querySelectorAll("textarea").item(index)?.focus();
   };
-  const comment = (quote: string): void => {
+  const comment = (quote: string, ref?: string): void => {
     const known = items.findIndex((item) => item.quote === quote);
     if (known === -1) {
-      items.push({ quote, comment: "" });
+      items.push(ref ? { quote, comment: "", ref } : { quote, comment: "" });
       save();
       draw();
     }

@@ -1,5 +1,5 @@
 import type { Answer } from "../../core/types.ts";
-import { diagramQuote } from "./diagram-map.ts";
+import { diagramQuote, diagramRef, requoteDiagram } from "./diagram-map.ts";
 import { type FeedbackWords, mountFeedback } from "./feedback.ts";
 import type { AnswerReply } from "./host-config.ts";
 
@@ -49,6 +49,7 @@ export function mountPage(options: PageOptions): { destroy: () => void } {
     page: options.page,
     words,
     diagrams: true,
+    requote: requoteDiagram,
     storage: options.storage,
     storageKey: options.storageKey,
     send: async (answer) => {
@@ -59,7 +60,7 @@ export function mountPage(options: PageOptions): { destroy: () => void } {
 
   const onDiagramTarget = (event: Event): void => {
     const target = (event as CustomEvent<{ kind: string; text: string }>).detail;
-    if (event.target instanceof Element) feedback.comment(diagramQuote(event.target, target));
+    if (event.target instanceof Element) feedback.comment(diagramQuote(event.target, target), diagramRef(event.target));
   };
 
   document.addEventListener("pbs-answer", onAnswer);

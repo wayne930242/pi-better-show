@@ -253,6 +253,35 @@ function diagramType(source: string): string {
  */
 export function diagramQuote(diagram: Element, target: { kind: string; text: string }): string {
   const position = [...document.querySelectorAll("pbs-diagram")].indexOf(diagram) + 1;
-  const source = (diagram as Element & { data?: { source?: string } }).data?.source ?? "";
-  return `[Diagram ${position}, ${diagramType(source)}] ${target.kind}: ${target.text}`;
+  return `[Diagram ${position}, ${diagramType(sourceOf(diagram))}] ${target.kind}: ${target.text}`;
+}
+
+const sourceOf = (diagram: Element): string => (diagram as Element & { data?: { source?: string } }).data?.source ?? "";
+
+/**
+ * What finds a diagram again when the page reloads after an agent's edit, which may add or remove diagrams before it:
+ * its source, and which of the page's diagrams drawn from that source it is.
+ */
+export function diagramRef(diagram: Element): string {
+  const source = sourceOf(diagram);
+  const alike = [...document.querySelectorAll("pbs-diagram")].filter((other) => sourceOf(other) === source);
+  return JSON.stringify([source, alike.indexOf(diagram)]);
+}
+
+/**
+ * A `diagramQuote` made on an earlier load, with the position its diagram (found by `diagramRef`) has on the page now.
+ * A diagram whose source changed is not found, and the quote keeps the position it has.
+ */
+export function requoteDiagram(quote: string, ref: string): string {
+  let found: Element | undefined;
+  try {
+    const [source, nth] = JSON.parse(ref) as [unknown, unknown];
+    const alike = [...document.querySelectorAll("pbs-diagram")].filter((other) => sourceOf(other) === source);
+    found = typeof nth === "number" ? alike[nth] : undefined;
+  } catch {
+    // A ref that cannot be read leaves the quote as it is.
+  }
+  if (!found) return quote;
+  const position = [...document.querySelectorAll("pbs-diagram")].indexOf(found) + 1;
+  return quote.replace(/^\[Diagram \d+,/, `[Diagram ${position},`);
 }
