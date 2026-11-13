@@ -179,7 +179,13 @@ describe("diagramMap: targets come in reading order", () => {
   });
 
   test("a chart that flows across reads left to right", () => {
-    expect(texts("flowchart LR\n A --> B --> C")).toEqual(["node: A", "edge: A → B", "node: B", "edge: B → C", "node: C"]);
+    expect(texts("flowchart LR\n A --> B --> C")).toEqual([
+      "node: A",
+      "edge: A → B",
+      "node: B",
+      "edge: B → C",
+      "node: C",
+    ]);
   });
 });
 
@@ -257,7 +263,7 @@ describe("pbs-diagram with diagramMap: clicking an element reports its words", (
     expect(focused()).toBe("node: Fix");
     key(at(), "ArrowUp");
     key(at(), "ArrowLeft");
-    expect(focused()).toBe("edge: Ok? → Fix \"no\"");
+    expect(focused()).toBe('edge: Ok? → Fix "no"');
     key(at(), "Home");
     expect(focused()).toBe("node: Start");
     key(at(), "End");
