@@ -63,15 +63,24 @@ describe("diagramMap: every quote is unique within its diagram", () => {
     expect(texts(STATE).some((t) => /[(#]/.test(t.replace(/"[^"]*"/g, "")))).toBe(false);
   });
 
-  test("two nodes with the same label are told apart by their ids, and so are their edges", () => {
+  test("two nodes with the same label are told apart by their ids, and their edges name them so", () => {
     const targets = texts("flowchart TD\n A[Check] --> B[Check]\n B --> C[Done]\n A --> C");
     unique(targets);
     expect(targets).toContain("node: Check (A)");
     expect(targets).toContain("node: Check (B)");
     expect(targets).toContain("node: Done");
-    expect(targets).toContain("edge: Check → Done (B → C)");
-    expect(targets).toContain("edge: Check → Done (A → C)");
-    expect(targets).toContain("edge: Check → Check");
+    expect(targets).toContain("edge: Check (B) → Done");
+    expect(targets).toContain("edge: Check (A) → Done");
+    expect(targets).toContain("edge: Check (A) → Check (B)");
+  });
+
+  test("an edge whose ends read alike only across kinds adds their ids", () => {
+    const targets = texts("flowchart TD\n subgraph S[One]\n  X\n end\n A[One] --> B\n S --> B");
+    unique(targets);
+    expect(targets).toContain("group: One");
+    expect(targets).toContain("node: One");
+    expect(targets).toContain("edge: One → B (A → B)");
+    expect(targets).toContain("edge: One → B (S → B)");
   });
 
   test("the same edge drawn twice is numbered in drawing order", () => {
@@ -89,7 +98,7 @@ describe("diagramMap: every quote is unique within its diagram", () => {
     unique(targets);
     expect(targets).toContain("group: One (S1)");
     expect(targets).toContain("group: One (S2)");
-    expect(targets).toContain("edge: One → One");
+    expect(targets).toContain("edge: One (S1) → One (S2)");
     expect(targets).toContain("edge: A → B");
   });
 
@@ -118,6 +127,29 @@ describe("diagramMap: a state diagram's [*] is start or end, scoped when there a
     expect(targets).toContain("edge: Active → end");
     expect(targets).toContain("edge: start (in Active) → Idle");
     expect(targets).toContain("edge: Busy → end (in Active)");
+    expect(new Set(targets).size).toBe(targets.length);
+  });
+
+  test("two composite states with the same title: each inner [*] names its state as the state's own quote does", () => {
+    const targets = texts(
+      'stateDiagram-v2\n [*] --> W1\n state "Work" as W1 {\n  [*] --> A\n  A --> [*]\n }\n state "Work" as W2 {\n  [*] --> B\n }\n W1 --> W2',
+    );
+    expect(targets.join("\n")).not.toMatch(/_start|_end/);
+    expect(targets).toContain("group: Work (W1)");
+    expect(targets).toContain("group: Work (W2)");
+    expect(targets).toContain("node: start");
+    expect(targets).toContain("node: start (in Work (W1))");
+    expect(targets).toContain("node: start (in Work (W2))");
+    expect(new Set(targets).size).toBe(targets.length);
+  });
+
+  test("a state named start or end beside [*]: the state keeps its name, the mark adds ([*])", () => {
+    const targets = texts("stateDiagram-v2\n [*] --> start\n start --> end\n end --> [*]");
+    expect(targets.join("\n")).not.toMatch(/_start|_end|\((start|end)\)/);
+    expect(targets).toContain("node: start");
+    expect(targets).toContain("node: end");
+    expect(targets).toContain("node: start ([*])");
+    expect(targets).toContain("node: end ([*])");
     expect(new Set(targets).size).toBe(targets.length);
   });
 });

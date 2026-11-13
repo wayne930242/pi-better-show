@@ -39,14 +39,17 @@ function shapeOf(element: Element): DiagramShape | undefined {
 const shapesIn = (group: Element): DiagramShape[] =>
   [...group.children].map(shapeOf).filter((shape) => shape !== undefined);
 
-/** The label a node is known by; a state diagram's `[*]` has none, and is `start` or `end` (`_start`, `_end2`, …). */
-function labelOf(node: Element): string {
-  const label = words(node.getAttribute("data-label"));
-  if (label) return label;
-  const id = node.getAttribute("data-id") ?? "";
-  const mark = /_(start|end)\d*$/.exec(id);
-  return mark?.[1] ?? id;
+/** A state diagram's `[*]`: the renderer draws it unlabelled, as a `state-start` or `state-end` shape. */
+function markOf(node: Element): "start" | "end" | undefined {
+  const shape = node.getAttribute("data-shape");
+  return shape === "state-start" ? "start" : shape === "state-end" ? "end" : undefined;
 }
+
+/** The label a node or group is known by: its own, `start` or `end` for a `[*]`, or else its id. */
+const labelOf = (node: Element): string =>
+  words(node.getAttribute("data-label")) || markOf(node) || words(node.getAttribute("data-id"));
+
+const idOf = (element: Element): string => element.getAttribute("data-id") ?? "";
 
 /** The box a group draws, in the image's own coordinates. */
 function boxOf(group: Element): { x: number; y: number; width: number; height: number } | undefined {
@@ -72,107 +75,132 @@ function centreOf(node: Element): { x: number; y: number } | undefined {
 }
 
 /**
- * The title of the innermost group that draws around `node`, if any. The drawing is flat (a state diagram's inner `[*]`
- * is not nested in its composite state), so containment is read from the geometry.
+ * The innermost group that draws around `node`, if any. The drawing is flat (a state diagram's inner `[*]` is not
+ * nested in its composite state), so containment is read from the geometry.
  */
-function enclosingTitle(svg: Element, node: Element): string | undefined {
+function enclosing(groups: Element[], node: Element): Element | undefined {
   const at = centreOf(node);
   if (!at) return undefined;
-  let best: { title: string; area: number } | undefined;
-  for (const group of svg.querySelectorAll("g.subgraph")) {
+  let best: { group: Element; area: number } | undefined;
+  for (const group of groups) {
     const box = boxOf(group);
     if (!box || at.x < box.x || at.x > box.x + box.width || at.y < box.y || at.y > box.y + box.height) continue;
     const area = box.width * box.height;
-    if (!best || area < best.area) best = { title: labelOf(group), area };
+    if (!best || area < best.area) best = { group, area };
   }
-  return best?.title;
+  return best?.group;
 }
 
 /**
- * The name of every node and group by id. Start and end marks are plain `start` and `end`; when a diagram has several of
- * one, each inside a composite state is `start (in Active)`, scoped by the state around it.
+ * A target before it is told apart: `tag` is what it adds when another target reads alike (`Check (B)`), `id` the
+ * drawing's id of the node or group it is.
  */
-function namesOf(svg: Element): Map<string, string> {
-  const names = new Map<string, string>();
-  const marks = new Map<string, Element[]>();
-  for (const node of svg.querySelectorAll("g.node, g.subgraph")) {
-    const id = node.getAttribute("data-id") ?? "";
-    const label = labelOf(node);
-    names.set(id, label);
-    if (node.localName === "g" && node.classList.contains("node") && (label === "start" || label === "end"))
-      if (!words(node.getAttribute("data-label"))) marks.set(label, [...(marks.get(label) ?? []), node]);
-  }
-  for (const [label, nodes] of marks) {
-    if (nodes.length < 2) continue;
-    for (const node of nodes) {
-      const title = enclosingTitle(svg, node);
-      if (title) names.set(node.getAttribute("data-id") ?? "", `${label} (in ${title})`);
-    }
-  }
-  return names;
-}
+type Draft = DiagramTarget & { tag: string; id?: string };
 
 /**
- * Makes every target's text unique within the diagram, so one quote names one element. Only a text that more than one
- * target has changes: nodes and groups add their id (`Check (B)`), edges their endpoint ids (`Check → Done (A → C)`),
- * and what is still alike is numbered in drawing order (`#1`, `#2`), skipping a number whose text another target
- * already has (a label written as `B #1`).
+ * Makes every target's text unique among `targets` (one kind), so one quote names one element. Only a text that more
+ * than one target has changes: each adds its tag where the tags differ (`Check (B)`), and what is still alike is
+ * numbered in drawing order (`#1`, `#2`), skipping a number whose text another target already has (a label written as
+ * `B #1`).
  */
-function disambiguated(targets: (DiagramTarget & { id?: string })[]): DiagramTarget[] {
+function disambiguated(targets: Draft[]): DiagramTarget[] {
   const count = (list: DiagramTarget[]): Map<string, number> => {
     const seen = new Map<string, number>();
-    for (const target of list)
-      seen.set(`${target.kind}:${target.text}`, (seen.get(`${target.kind}:${target.text}`) ?? 0) + 1);
+    for (const target of list) seen.set(target.text, (seen.get(target.text) ?? 0) + 1);
     return seen;
   };
   const first = count(targets);
-  // An id only helps where it differs between the targets that share a text.
-  const ids = new Map<string, Set<string | undefined>>();
-  for (const target of targets) {
-    const key = `${target.kind}:${target.text}`;
-    ids.set(key, (ids.get(key) ?? new Set()).add(target.id));
-  }
-  const named = targets.map(({ id, ...target }) => {
-    const key = `${target.kind}:${target.text}`;
-    return id && (first.get(key) ?? 0) > 1 && (ids.get(key)?.size ?? 0) > 1
-      ? { ...target, text: `${target.text} (${id})` }
-      : target;
-  });
+  // A tag only helps where it differs between the targets that share a text.
+  const tags = new Map<string, Set<string>>();
+  for (const target of targets) tags.set(target.text, (tags.get(target.text) ?? new Set()).add(target.tag));
+  const named = targets.map(({ tag, id: _id, ...target }) =>
+    tag && (first.get(target.text) ?? 0) > 1 && (tags.get(target.text)?.size ?? 0) > 1
+      ? { ...target, text: `${target.text} (${tag})` }
+      : target,
+  );
   const second = count(named);
-  const keyOf = (target: DiagramTarget): string => `${target.kind}:${target.text}`;
-  const taken = new Set(named.filter((target) => (second.get(keyOf(target)) ?? 0) < 2).map(keyOf));
+  const taken = new Set(named.filter((target) => (second.get(target.text) ?? 0) < 2).map((target) => target.text));
   const next = new Map<string, number>();
   return named.map((target) => {
-    const key = keyOf(target);
-    if ((second.get(key) ?? 0) < 2) return target;
-    let ordinal = next.get(key) ?? 0;
+    if ((second.get(target.text) ?? 0) < 2) return target;
+    let ordinal = next.get(target.text) ?? 0;
     do ordinal += 1;
-    while (taken.has(`${key} #${ordinal}`));
-    next.set(key, ordinal);
-    taken.add(`${key} #${ordinal}`);
+    while (taken.has(`${target.text} #${ordinal}`));
+    next.set(target.text, ordinal);
+    taken.add(`${target.text} #${ordinal}`);
     return { ...target, text: `${target.text} #${ordinal}` };
   });
 }
 
+/**
+ * Tells apart the nodes or the groups, and records each one's final name and tag by id: later targets (a `[*]`'s
+ * composite state, an edge's ends) are named by them. A target with no text or shape is left out.
+ */
+function settle(drafts: Draft[], names: Map<string, string>, tags: Map<string, string>): DiagramTarget[] {
+  for (const draft of drafts) {
+    names.set(draft.id ?? "", draft.text);
+    tags.set(draft.id ?? "", draft.tag);
+  }
+  const kept = drafts.filter((draft) => draft.text && draft.shapes.length > 0);
+  const targets = disambiguated(kept);
+  for (const [index, draft] of kept.entries()) names.set(draft.id ?? "", targets[index]?.text ?? draft.text);
+  return targets;
+}
+
+/**
+ * What a reader can point at in the drawing, each named in the diagram's own words and unique within its kind. Groups
+ * are named first, then nodes (a `[*]` among several is scoped by the composite state around it: `start (in Active)`),
+ * then edges by the names of their ends, so an edge says which `Check` it starts from. Renderer ids never show: a `[*]`
+ * that reads like another node adds `([*])`.
+ */
 export function diagramMap(svg: Element): DiagramMap | undefined {
   const viewBox = svg.getAttribute("viewBox");
   if (!viewBox) return undefined;
-  const labels = namesOf(svg);
-  const name = (id: string | null): string => labels.get(id ?? "") ?? words(id);
+  /** Each node's and group's name, and the tag that tells it apart, by id: what an edge is named by. */
+  const names = new Map<string, string>();
+  const tags = new Map<string, string>();
 
-  const groups: (DiagramTarget & { id?: string })[] = [...svg.querySelectorAll("g.subgraph")].map((group) => {
-    const [box, header] = shapesIn(group);
-    // The header strip only: the whole box would cover the nodes inside it.
-    return {
-      kind: "group",
-      text: labels.get(group.getAttribute("data-id") ?? "") ?? labelOf(group),
-      id: group.getAttribute("data-id") ?? undefined,
-      shapes: [header ?? box].filter((shape) => shape !== undefined),
-    };
+  const groupElements = [...svg.querySelectorAll("g.subgraph")];
+  const groups = settle(
+    groupElements.map((group) => {
+      const [box, header] = shapesIn(group);
+      // The header strip only: the whole box would cover the nodes inside it.
+      const shapes = [header ?? box].filter((shape) => shape !== undefined);
+      return { kind: "group", text: labelOf(group), tag: idOf(group), id: idOf(group), shapes };
+    }),
+    names,
+    tags,
+  );
+
+  const nodeElements = [...svg.querySelectorAll("g.node")];
+  const several = (mark: string): boolean => nodeElements.filter((node) => markOf(node) === mark).length > 1;
+  const scoped = nodeElements.map((node) => {
+    const mark = markOf(node);
+    if (!mark) return labelOf(node);
+    const around = several(mark) ? enclosing(groupElements, node) : undefined;
+    return around ? `${mark} (in ${names.get(idOf(around))})` : mark;
   });
+  const labels = new Set(nodeElements.filter((node) => !markOf(node)).map(labelOf));
+  const nodes = settle(
+    nodeElements.map((node, index) => {
+      const text = scoped[index] ?? "";
+      const mark = markOf(node) !== undefined;
+      return {
+        kind: "node",
+        text: mark && labels.has(text) ? `${text} ([*])` : text,
+        tag: mark ? "[*]" : idOf(node),
+        id: idOf(node),
+        shapes: shapesIn(node),
+      };
+    }),
+    names,
+    tags,
+  );
 
+  const name = (id: string | null): string => names.get(id ?? "") || words(id);
+  const tag = (id: string | null): string => tags.get(id ?? "") || words(id);
   const boxes = [...svg.querySelectorAll("g.edge-label")];
-  const edges: (DiagramTarget & { id?: string })[] = [];
+  const edges: Draft[] = [];
   for (const edge of svg.querySelectorAll(".edge")) {
     const from = edge.getAttribute("data-from");
     const to = edge.getAttribute("data-to");
@@ -193,22 +221,13 @@ export function diagramMap(svg: Element): DiagramMap | undefined {
     edges.push({
       kind: "edge",
       text: `${name(from)} → ${name(to)}${label ? ` "${label}"` : ""}`,
-      id: `${words(from)} → ${words(to)}`,
+      tag: `${tag(from)} → ${tag(to)}`,
       shapes,
     });
   }
 
-  const nodes: (DiagramTarget & { id?: string })[] = [...svg.querySelectorAll("g.node")].map((node) => ({
-    kind: "node",
-    text: labels.get(node.getAttribute("data-id") ?? "") ?? labelOf(node),
-    id: node.getAttribute("data-id") ?? undefined,
-    shapes: shapesIn(node),
-  }));
-
   // Later targets sit above earlier ones: groups below edges below nodes.
-  const targets = disambiguated(
-    [...groups, ...edges, ...nodes].filter((target) => target.text && target.shapes.length > 0),
-  );
+  const targets = [...groups, ...disambiguated(edges), ...nodes];
   return targets.length > 0 ? { viewBox, targets } : undefined;
 }
 
