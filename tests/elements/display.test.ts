@@ -184,19 +184,47 @@ describe("pbs-diagram", () => {
 
   test("a drawing much wider than its panel keeps its size and scrolls, a fitting one shrinks to fit", () => {
     configure({ diagramUrl: () => "/d.svg" });
-    const loaded = (natural: number, panel: number) => {
+    const observers: (() => void)[] = [];
+    const disconnected: number[] = [];
+    const g = globalThis as unknown as { ResizeObserver?: unknown };
+    const saved = g.ResizeObserver;
+    g.ResizeObserver = class {
+      constructor(callback: () => void) {
+        observers.push(callback);
+      }
+      observe() {}
+      disconnect() {
+        disconnected.push(1);
+      }
+    };
+    try {
       const el = mount("pbs-diagram", data);
       const figure = one(el, "figure");
-      Object.defineProperty(figure, "clientWidth", { value: panel });
+      let panel = 0;
+      Object.defineProperty(figure, "clientWidth", { get: () => panel });
       const image = one<HTMLImageElement>(el, "img");
-      Object.defineProperty(image, "naturalWidth", { value: natural });
+      Object.defineProperty(image, "naturalWidth", { value: 1544 });
+      // Hidden at load: nothing to judge yet.
       image.dispatchEvent(new Event("load"));
-      return figure.hasAttribute("data-wide");
-    };
-    expect(loaded(1544, 760)).toBe(true);
-    expect(loaded(900, 760)).toBe(false);
-    expect(loaded(500, 760)).toBe(false);
-    expect(loaded(500, 0)).toBe(false);
+      expect(figure.hasAttribute("data-wide")).toBe(false);
+      panel = 760;
+      for (const callback of observers) callback();
+      expect(figure.hasAttribute("data-wide")).toBe(true);
+      panel = 1400;
+      for (const callback of observers) callback();
+      expect(figure.hasAttribute("data-wide")).toBe(false);
+      el.remove();
+      expect(disconnected.length).toBeGreaterThan(0);
+    } finally {
+      g.ResizeObserver = saved;
+    }
+  });
+
+  test("the overlay is labelled with the same description as the image", async () => {
+    configure({ diagramUrl: () => "/d.svg", diagramMap: async () => ({ viewBox: "0 0 10 10", targets: [] }) });
+    const el = mount("pbs-diagram", data);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(one(el, "svg.targets").getAttribute("aria-label")).toBe("Flowchart, 2 nodes: A → B");
   });
 
   test("a wide drawing's frame grows with the image, so the overlay stays on it", () => {

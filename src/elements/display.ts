@@ -261,6 +261,13 @@ export class PbsDiagram extends PbsElement<MermaidData> {
   static override css = displayCss;
   /** A URL whose image failed to load; the source is shown instead. */
   #failed: string | undefined;
+  #resize: ResizeObserver | undefined;
+
+  override disconnectedCallback(): void {
+    super.disconnectedCallback();
+    this.#resize?.disconnect();
+    this.#resize = undefined;
+  }
 
   protected override reset(): void {
     this.#failed = undefined;
@@ -279,9 +286,17 @@ export class PbsDiagram extends PbsElement<MermaidData> {
         loading: "lazy",
       });
       // A drawing far wider than the panel would shrink to unreadable text: keep its size and let the panel scroll.
-      image.addEventListener("load", () => {
+      const judge = () => {
         const wide = figure.clientWidth > 0 && image.naturalWidth > figure.clientWidth * WIDE_RATIO;
         figure.toggleAttribute("data-wide", wide);
+      };
+      image.addEventListener("load", () => {
+        judge();
+        // A panel that was hidden at load, or later resized, is judged again.
+        if (typeof ResizeObserver === "undefined") return;
+        this.#resize?.disconnect();
+        this.#resize = new ResizeObserver(judge);
+        this.#resize.observe(figure);
       });
       image.addEventListener("error", () => {
         this.#failed = url;
@@ -294,6 +309,10 @@ export class PbsDiagram extends PbsElement<MermaidData> {
       figure.append(h("p", { part: "note", class: "muted note" }, this.t("diagramFallback")), source);
     }
     return figure;
+  }
+
+  #description(): string {
+    return describeDiagram(this.data?.source ?? "", this.strings).alt;
   }
 
   /**
@@ -383,7 +402,7 @@ export class PbsDiagram extends PbsElement<MermaidData> {
         class: "targets",
         viewBox: map.viewBox,
         role: "group",
-        "aria-label": this.t("diagram"),
+        "aria-label": this.#description(),
         "aria-describedby": "diagram-keys",
       },
       keys,

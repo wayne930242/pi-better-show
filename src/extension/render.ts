@@ -1,6 +1,7 @@
 import MarkdownIt from "markdown-it";
 import { parse } from "../core/index.ts";
 import type { Segment } from "../core/types.ts";
+import { langOf } from "../elements/diagram-alt.ts";
 import { TAGS } from "../elements/index.ts";
 
 /** Prose is Markdown with raw HTML left as text; blocks become `pbs-*` elements that read their data from an attribute. */
@@ -52,8 +53,7 @@ export function renderBody(markdown: string, options: RenderOptions): string {
     .join("");
 }
 
-/** Chinese text sets the page's language, which the elements' words follow. */
-export const langOf = (source: string): string | undefined => (/[\u3400-\u9fff]/.test(source) ? "zh-Hant" : undefined);
+export { langOf };
 
 export interface PageOptions {
   title: string;

@@ -2,6 +2,9 @@ import { format, type Strings } from "./strings.ts";
 
 /** What a Mermaid diagram is and shows, in words: the image's alt text and the SVG's title and description. */
 
+/** Chinese text sets the language, which the words (and the SVG's `xml:lang`) follow. */
+export const langOf = (source: string): string | undefined => (/[\u3400-\u9fff]/.test(source) ? "zh-Hant" : undefined);
+
 export interface DiagramDescription {
   /** The type, with the diagram's own title when it has one: `Flowchart “Cache path”`. */
   title: string;
