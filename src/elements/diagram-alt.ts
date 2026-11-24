@@ -26,11 +26,13 @@ const NODE = /^([^\s[\](){}"<>|:;&]+)(?::::\w+)?\s*(?:[[({]+\s*"?([^"\]})]*?)"?\
 
 const unquote = (value: string): string => value.trim().replace(/^["']|["']$/g, "");
 
-function titleOf(lines: string[]): string | undefined {
-  const front = /^title:\s*(.+)$/.exec(lines.find((line) => /^title:/i.test(line)) ?? "");
+function titleOf(lines: string[], chart: boolean): string | undefined {
+  const plain = lines.filter((line) => !ARROW.test(line));
+  const front = /^title:\s*(.+)$/i.exec(plain.find((line) => /^title:/i.test(line)) ?? "");
   if (front) return unquote(front[1] as string);
-  const chart = /^title\s+(.+)$/i.exec(lines.find((line) => /^title\s/i.test(line)) ?? "");
-  return chart ? unquote(chart[1] as string) : undefined;
+  if (!chart) return undefined;
+  const named = /^title\s+(.+)$/i.exec(plain.find((line) => /^title\s/i.test(line)) ?? "");
+  return named ? unquote(named[1] as string) : undefined;
 }
 
 /** The nodes and edges a flowchart or state diagram names, in source order; the first label seen for an id wins. */
@@ -39,27 +41,37 @@ function readEdges(lines: string[]): { count: number; path: string[]; more: bool
   const edges: [string, string][] = [];
   for (const line of lines) {
     if (!ARROW.test(line)) continue;
-    const ids: string[] = [];
+    const groups: string[][] = [];
     for (const part of line.replace(/:[^>]*$/, "").split(ARROW)) {
-      const node = NODE.exec(part.trim());
-      if (!node || node[1] === "[*]") continue;
-      const id = node[1] as string;
-      const label = node[2]?.trim();
-      if (!labels.has(id) || (label && labels.get(id) === id)) labels.set(id, label || id);
-      ids.push(id);
+      const ids: string[] = [];
+      for (const piece of part.split(/\s+&\s+/)) {
+        const node = NODE.exec(piece.trim());
+        if (!node || node[1] === "[*]") continue;
+        const id = node[1] as string;
+        const label = node[2]?.trim();
+        if (!labels.has(id) || (label && labels.get(id) === id)) labels.set(id, label || id);
+        ids.push(id);
+      }
+      if (ids.length > 0) groups.push(ids);
     }
-    for (let i = 1; i < ids.length; i++) edges.push([ids[i - 1] as string, ids[i] as string]);
+    for (let i = 1; i < groups.length; i++) {
+      for (const from of groups[i - 1] as string[]) for (const to of groups[i] as string[]) edges.push([from, to]);
+    }
   }
-  const path: string[] = [];
+  const chains: string[][] = [];
+  let shown = 0;
   let used = 0;
   for (const [from, to] of edges) {
-    if (path.length >= MAX_PATH) break;
-    if (path.at(-1) !== from) path.push(from);
-    path.push(to);
+    const last = chains.at(-1);
+    const extend = last?.at(-1) === from;
+    if (shown + (extend ? 1 : 2) > MAX_PATH) break;
+    if (extend) last?.push(to);
+    else chains.push([from, to]);
+    shown += extend ? 1 : 2;
     used++;
   }
-  const named = path.slice(0, MAX_PATH).map((id) => labels.get(id) ?? id);
-  return { count: labels.size, path: named, more: used < edges.length || path.length > MAX_PATH };
+  const path = chains.map((chain) => chain.map((id) => labels.get(id) ?? id).join(" → "));
+  return { count: labels.size, path, more: used < edges.length };
 }
 
 export function describeDiagram(source: string, strings: Strings): DiagramDescription {
@@ -71,7 +83,7 @@ export function describeDiagram(source: string, strings: Strings): DiagramDescri
   const first = lines.find((line) => !/^\w+:/.test(line) || /^(?:graph|flowchart|stateDiagram)/i.test(line)) ?? "";
   const kind = KINDS.find(([pattern]) => pattern.test(first))?.[1];
   const base = kind ? strings[kind] : strings.diagram;
-  const name = titleOf(lines);
+  const name = titleOf(lines, kind === "diagramKindChart");
   const title = name ? `${base} “${name}”` : base;
   let desc = "";
   if (kind === "diagramKindFlow" || kind === "diagramKindState") {
@@ -79,7 +91,7 @@ export function describeDiagram(source: string, strings: Strings): DiagramDescri
     if (count > 0) {
       const nodes = format(strings.diagramNodes, { n: count });
       desc =
-        path.length > 0 ? format(strings.diagramDesc, { nodes, path: path.join(" → ") + (more ? " …" : "") }) : nodes;
+        path.length > 0 ? format(strings.diagramDesc, { nodes, path: path.join("; ") + (more ? " …" : "") }) : nodes;
     }
   }
   return { title, desc, alt: desc ? format(strings.diagramAlt, { title, desc }) : title };

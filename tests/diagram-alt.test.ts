@@ -37,4 +37,20 @@ describe("describeDiagram", () => {
     expect(describeDiagram("sequenceDiagram\n  Alice->>Bob: Hi", STRINGS.en).alt).toBe("Sequence diagram");
     expect(describeDiagram("erDiagram\n  A ||--o{ B : has", STRINGS["zh-Hant"]).alt).toBe("實體關聯圖");
   });
+
+  test("a chain stops where the next edge does not continue it, and separate chains are joined by a semicolon", () => {
+    const src = "graph TD\n  A --> B\n  subgraph S\n    C --> D\n  end";
+    expect(describeDiagram(src, STRINGS.en).desc).toBe("4 nodes: A → B; C → D");
+  });
+
+  test("& joins nodes on either side of an arrow", () => {
+    const d = describeDiagram("graph TD\n  A --> B & C", STRINGS.en);
+    expect(d.desc).toStartWith("3 nodes: ");
+    expect(d.desc).toBe("3 nodes: A → B; A → C");
+  });
+
+  test("a node named title is not the diagram's title", () => {
+    expect(describeDiagram("graph TD\n  title --> B", STRINGS.en).title).toBe("Flowchart");
+    expect(describeDiagram("graph TD\n  title[Page]\n  title --> B", STRINGS.en).title).toBe("Flowchart");
+  });
 });
