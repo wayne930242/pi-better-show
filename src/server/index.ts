@@ -38,6 +38,10 @@ const SCHEMES: Record<"light" | "dark", DiagramColors> = {
   },
 };
 
+const PADDING = 20;
+const CJK_FONTS = "'PingFang TC', 'Noto Sans TC', 'Microsoft JhengHei'";
+const HAN = /[\u3400-\u9fff]/;
+
 /** Columns a text diagram may take unless the caller says otherwise; matches core's `toText` default. */
 export const DEFAULT_DIAGRAM_WIDTH = 60;
 
@@ -53,9 +57,18 @@ export function mermaidSvg(source: string, options: SvgOptions = {}): string {
     ...colors,
     font: options.font ?? "system-ui",
     transparent: options.transparent ?? false,
+    padding: PADDING,
   });
   // The library imports a web font; hosts serve diagrams from their own origin, and a CSP may forbid more.
-  return svg.replace(/@import\s+url\([^)]*\)\s*;?/g, "");
+  let out = svg
+    .replace(/@import\s+url\([^)]*\)\s*;?/g, "")
+    // The `font` option takes one quoted family, so the Traditional Chinese faces are added after the fact.
+    .replace(
+      /font-family:\s*[^;}]*;/,
+      (rule) => `${rule.slice(0, -1).replace(/,\s*sans-serif$/, "")}, ${CJK_FONTS}, sans-serif;`,
+    );
+  if (HAN.test(source)) out = out.replace(/^<svg /, '<svg xml:lang="zh-Hant" ');
+  return out;
 }
 
 /**

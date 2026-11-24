@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { renderMermaidSVG } from "beautiful-mermaid";
 import { parse, toText } from "../src/core/index.ts";
 import { mermaidSvg, mermaidText } from "../src/server/index.ts";
 
@@ -53,6 +54,24 @@ describe("mermaidSvg", () => {
   test("a font is a family name that replaces the default", () => {
     expect(mermaidSvg(FLOW)).toContain("font-family: 'system-ui'");
     expect(mermaidSvg(FLOW, { font: "Noto Sans TC" })).toContain("font-family: 'Noto Sans TC'");
+  });
+
+  test("pads the drawing by 20, not the library's 40", () => {
+    const width = (svg: string) => Number(/viewBox="0 0 ([\d.]+) /.exec(svg)?.[1]);
+    expect(width(mermaidSvg(FLOW))).toBe(width(renderMermaidSVG(FLOW, { padding: 20 })));
+    expect(width(mermaidSvg(FLOW))).toBeLessThan(width(renderMermaidSVG(FLOW)));
+  });
+
+  test("the font stack ends in Traditional Chinese faces", () => {
+    const svg = mermaidSvg(FLOW, { font: "Inter" });
+    expect(svg).toMatch(
+      /font-family: 'Inter', [^;]*'PingFang TC'[^;]*'Noto Sans TC'[^;]*'Microsoft JhengHei'[^;]*sans-serif;/,
+    );
+  });
+
+  test("a source with Han characters marks the drawing zh-Hant, others stay unmarked", () => {
+    expect(mermaidSvg("graph TD\n  A[開始] --> B")).toMatch(/^<svg [^>]*xml:lang="zh-Hant"/);
+    expect(mermaidSvg(FLOW)).not.toContain("xml:lang");
   });
 
   test("label text cannot inject markup", () => {
