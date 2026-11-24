@@ -23,7 +23,6 @@ const SCHEMES: Record<"light" | "dark", DiagramColors> = {
   light: {
     bg: "#ffffff",
     fg: "#1f2328",
-    line: "#d1d9e0",
     accent: "#0969da",
     muted: "#59636e",
     surface: "#f6f8fa",
@@ -32,7 +31,6 @@ const SCHEMES: Record<"light" | "dark", DiagramColors> = {
   dark: {
     bg: "#151b23",
     fg: "#e6edf3",
-    line: "#3d444d",
     accent: "#4493f8",
     muted: "#9ba3ad",
     surface: "#1d252f",

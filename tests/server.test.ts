@@ -25,24 +25,39 @@ describe("mermaidSvg", () => {
 
   test("the built-in schemes carry the element tokens, accent and muted included", () => {
     const light = mermaidSvg(FLOW, { scheme: "light" });
-    for (const token of [
-      "--fg:#1f2328",
-      "--accent:#0969da",
-      "--muted:#59636e",
-      "--line:#d1d9e0",
-      "--surface:#f6f8fa",
-    ]) {
+    for (const token of ["--fg:#1f2328", "--accent:#0969da", "--muted:#59636e", "--surface:#f6f8fa"]) {
       expect(light).toContain(token);
     }
     const dark = mermaidSvg(FLOW, { scheme: "dark" });
-    for (const token of [
-      "--fg:#e6edf3",
-      "--accent:#4493f8",
-      "--muted:#9ba3ad",
-      "--line:#3d444d",
-      "--surface:#1d252f",
-    ]) {
+    for (const token of ["--fg:#e6edf3", "--accent:#4493f8", "--muted:#9ba3ad", "--surface:#1d252f"]) {
       expect(dark).toContain(token);
+    }
+  });
+
+  test("edges stay at least 3:1 against the background in both schemes", () => {
+    const lum = (hex: string) => {
+      const c = [1, 3, 5].map((i) => {
+        const v = Number.parseInt(hex.slice(i, i + 2), 16) / 255;
+        return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+      });
+      return 0.2126 * (c[0] as number) + 0.7152 * (c[1] as number) + 0.0722 * (c[2] as number);
+    };
+    const mix = (a: string, b: string) =>
+      `#${[1, 3, 5]
+        .map((i) =>
+          Math.round((Number.parseInt(a.slice(i, i + 2), 16) + Number.parseInt(b.slice(i, i + 2), 16)) / 2)
+            .toString(16)
+            .padStart(2, "0"),
+        )
+        .join("")}`;
+    for (const scheme of ["light", "dark"] as const) {
+      const svg = mermaidSvg(FLOW, { scheme });
+      // With no --line the library draws edges in a 50% fg/bg mix.
+      expect(svg).not.toContain("--line:");
+      const bg = /--bg:(#\w+)/.exec(svg)?.[1] as string;
+      const fg = /--fg:(#\w+)/.exec(svg)?.[1] as string;
+      const [hi, lo] = [lum(mix(fg, bg)), lum(bg)].sort((x, y) => y - x) as [number, number];
+      expect((hi + 0.05) / (lo + 0.05)).toBeGreaterThanOrEqual(3);
     }
   });
 
