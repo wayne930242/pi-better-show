@@ -1,4 +1,4 @@
-# pi-better-show 參考 <!-- source: docs/reference.md @ ff1d1b9 -->
+# pi-better-show 參考 <!-- source: docs/reference.md @ 64b5fe7 -->
 
 [README](../README.zh-TW.md) 背後的完整契約：每一種區塊、core、server、元素與 React 的 API，以及 `show_doc` extension 的細節。請找到需要的那一節，其餘可以略過。
 
@@ -441,7 +441,7 @@ parse(markdown: string): Segment[]
 告訴作者一個檔案的區塊哪裡有問題，而 `parse` 只會繼續往下剖析。
 
 ```ts
-checkBlocks(markdown: string, options?: { mermaid?: (source: string) => string | undefined }): BlockProblem[]
+checkBlocks(markdown: string, options?: { mermaid?: (source: string) => string | undefined; mermaidNotes?: (source: string) => string[] }): BlockProblem[]
 formatProblems(name: string, problems: BlockProblem[]): string
 
 interface BlockProblem {
@@ -456,7 +456,7 @@ interface BlockProblem {
 <details>
 <summary>哪些是 error，哪些是 warning</summary>
 
-`error`：區塊無效，頁面會顯示它的原始碼（YAML 錯誤會回報在造成它的那一行；被沒加引號的 ` #` 弄斷的 flow collection，會指向開啟它的那一行）。`warning`：區塊畫得出來，但寫下的內容有一部分遺失：被 ` #` 截短的純值（YAML 把後面讀成註解；訊息會指出鍵的路徑並提醒加引號）、區塊在那一層不讀的鍵（附上已知的鍵，差一點打對時還有「你是不是要寫」的提示），或是一直沒有關閉的 fence。Core 沒有 Mermaid 剖析器：傳入 `options.mermaid`（回傳圖的原始碼哪裡有問題），也能檢查圖。它是純函式，載入的東西不比 `parse` 多。
+`error`：區塊無效，頁面會顯示它的原始碼（YAML 錯誤會回報在造成它的那一行；被沒加引號的 ` #` 弄斷的 flow collection，會指向開啟它的那一行）。`warning`：區塊畫得出來，但寫下的內容有一部分遺失：被 ` #` 截短的純值（YAML 把後面讀成註解；訊息會指出鍵的路徑並提醒加引號）、區塊在那一層不讀的鍵（附上已知的鍵，差一點打對時還有「你是不是要寫」的提示），或是一直沒有關閉的 fence。Core 沒有 Mermaid 剖析器：傳入 `options.mermaid`（回傳圖的原始碼哪裡有問題），也能檢查圖；再傳入 `options.mermaidNotes`（server 的 `diagramNotes`），圖太擠或太寬時會以 warning 提醒。它是純函式，載入的東西不比 `parse` 多。
 
 </details>
 
