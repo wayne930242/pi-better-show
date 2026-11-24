@@ -1,4 +1,4 @@
-import { DEFAULTS, type DiagramColors, renderMermaidASCII, renderMermaidSVG, THEMES } from "beautiful-mermaid";
+import { type DiagramColors, renderMermaidASCII, renderMermaidSVG } from "beautiful-mermaid";
 import { displayWidth } from "../core/index.ts";
 
 /** Node side of pi-better-show: Mermaid diagrams drawn as SVG for the web and as Unicode text for chat. */
@@ -16,9 +16,26 @@ export interface SvgOptions {
   transparent?: boolean;
 }
 
+/** The default element tokens (`--pbs-*` in elements/styles.ts), so a diagram matches the panel around it. */
 const SCHEMES: Record<"light" | "dark", DiagramColors> = {
-  light: THEMES["zinc-light"] ?? DEFAULTS,
-  dark: THEMES["zinc-dark"] ?? DEFAULTS,
+  light: {
+    bg: "#ffffff",
+    fg: "#1f2328",
+    line: "#d1d9e0",
+    accent: "#0969da",
+    muted: "#59636e",
+    surface: "#f6f8fa",
+    border: "#d1d9e0",
+  },
+  dark: {
+    bg: "#151b23",
+    fg: "#e6edf3",
+    line: "#3d444d",
+    accent: "#4493f8",
+    muted: "#9ba3ad",
+    surface: "#1d252f",
+    border: "#3d444d",
+  },
 };
 
 /** Columns a text diagram may take unless the caller says otherwise; matches core's `toText` default. */

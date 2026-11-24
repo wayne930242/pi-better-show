@@ -14,12 +14,35 @@ describe("mermaidSvg", () => {
   });
 
   test("is themed by the scheme it is given", () => {
-    expect(mermaidSvg(FLOW, { scheme: "light" })).toContain("--bg:#FFFFFF");
-    expect(mermaidSvg(FLOW, { scheme: "dark" })).toContain("--bg:#18181B");
+    expect(mermaidSvg(FLOW, { scheme: "light" })).toContain("--bg:#ffffff");
+    expect(mermaidSvg(FLOW, { scheme: "dark" })).toContain("--bg:#151b23");
     const custom = mermaidSvg(FLOW, { scheme: { bg: "#102030", fg: "#f0e0d0", accent: "#ff8800" } });
     expect(custom).toContain("--bg:#102030");
     expect(custom).toContain("--fg:#f0e0d0");
     expect(custom).toContain("--accent:#ff8800");
+  });
+
+  test("the built-in schemes carry the element tokens, accent and muted included", () => {
+    const light = mermaidSvg(FLOW, { scheme: "light" });
+    for (const token of [
+      "--fg:#1f2328",
+      "--accent:#0969da",
+      "--muted:#59636e",
+      "--line:#d1d9e0",
+      "--surface:#f6f8fa",
+    ]) {
+      expect(light).toContain(token);
+    }
+    const dark = mermaidSvg(FLOW, { scheme: "dark" });
+    for (const token of [
+      "--fg:#e6edf3",
+      "--accent:#4493f8",
+      "--muted:#9ba3ad",
+      "--line:#3d444d",
+      "--surface:#1d252f",
+    ]) {
+      expect(dark).toContain(token);
+    }
   });
 
   test("transparent leaves the background out", () => {
