@@ -75,6 +75,8 @@ describe("package", () => {
         const allowed =
           ["beautiful-mermaid", "yaml"].includes(specifier) ||
           specifier.startsWith("../core/") ||
+          // The diagram's words (alt text, SVG title) come from the elements' own pure modules.
+          ["../elements/diagram-alt.ts", "../elements/strings.ts"].includes(specifier) ||
           specifier.startsWith("./");
         if (!allowed) throw new Error(`${file} imports ${specifier}`);
       }

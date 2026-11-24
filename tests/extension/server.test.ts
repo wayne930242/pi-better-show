@@ -343,9 +343,9 @@ describe("a Markdown page", () => {
     const dark = await diagram("graph TD\n A-->B");
     expect(dark.status).toBe(200);
     expect(dark.headers["content-type"]).toBe("image/svg+xml");
-    expect(dark.body).toContain("--bg:#18181B");
+    expect(dark.body).toContain("--bg:#151b23");
     expect(dark.headers["content-security-policy"]).toContain("sandbox");
-    expect((await diagram("graph TD\n A-->B", "light")).body).toContain("--bg:#FFFFFF");
+    expect((await diagram("graph TD\n A-->B", "light")).body).toContain("--bg:#ffffff");
     expect((await diagram("this is not a diagram")).status).toBe(422);
     expect((await diagram("")).status).toBe(400);
     expect((await diagram("x".repeat(7000))).status).toBe(400);

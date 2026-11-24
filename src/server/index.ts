@@ -1,5 +1,7 @@
 import { type DiagramColors, renderMermaidASCII, renderMermaidSVG } from "beautiful-mermaid";
 import { displayWidth } from "../core/index.ts";
+import { describeDiagram } from "../elements/diagram-alt.ts";
+import { STRINGS } from "../elements/strings.ts";
 
 /** Node side of pi-better-show: Mermaid diagrams drawn as SVG for the web and as Unicode text for chat. */
 
@@ -40,6 +42,7 @@ const SCHEMES: Record<"light" | "dark", DiagramColors> = {
 
 const PADDING = 20;
 const CJK_FONTS = "'PingFang TC', 'Noto Sans TC', 'Microsoft JhengHei'";
+const escapeXml = (text: string): string => text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 const HAN = /[\u3400-\u9fff]/;
 
 /** Columns a text diagram may take unless the caller says otherwise; matches core's `toText` default. */
@@ -67,7 +70,13 @@ export function mermaidSvg(source: string, options: SvgOptions = {}): string {
       /font-family:\s*[^;}]*;/,
       (rule) => `${rule.slice(0, -1).replace(/,\s*sans-serif$/, "")}, ${CJK_FONTS}, sans-serif;`,
     );
-  if (HAN.test(source)) out = out.replace(/^<svg /, '<svg xml:lang="zh-Hant" ');
+  const han = HAN.test(source);
+  const { title, desc } = describeDiagram(source, STRINGS[han ? "zh-Hant" : "en"]);
+  const notes = `\n<title>${escapeXml(title)}</title>${desc ? `\n<desc>${escapeXml(desc)}</desc>` : ""}`;
+  out = out.replace(
+    /^<svg ([^>]*)>/,
+    (_, attributes: string) => `<svg ${han ? 'xml:lang="zh-Hant" ' : ""}${attributes} role="img">${notes}`,
+  );
   return out;
 }
 

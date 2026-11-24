@@ -171,6 +171,16 @@ describe("pbs-diagram", () => {
     expect(one<HTMLImageElement>(el, "img").getAttribute("src")).toBe("/d/light.svg");
   });
 
+  test("the image's alt says what the diagram is and shows, in the language in force", () => {
+    configure({ diagramUrl: () => "/d.svg" });
+    expect(one<HTMLImageElement>(mount("pbs-diagram", data), "img").getAttribute("alt")).toBe(
+      "Flowchart, 2 nodes: A → B",
+    );
+    expect(one<HTMLImageElement>(mount("pbs-diagram", data, { lang: "zh-TW" }), "img").getAttribute("alt")).toBe(
+      "流程圖，2 個節點：A → B",
+    );
+  });
+
   test("an image that fails to load falls back to the source", () => {
     configure({ diagramUrl: () => "/missing.svg" });
     const el = mount("pbs-diagram", data);

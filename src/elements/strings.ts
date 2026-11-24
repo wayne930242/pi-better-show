@@ -43,6 +43,17 @@ export interface Strings {
   diagramGroup: string;
   /** How to move through a diagram's elements, for screen readers. */
   diagramKeys: string;
+  diagramKindFlow: string;
+  diagramKindState: string;
+  diagramKindSequence: string;
+  diagramKindClass: string;
+  diagramKindEr: string;
+  diagramKindChart: string;
+  diagramNodes: string;
+  /** `{title}` then `{desc}`: what the image's alt text reads. */
+  diagramAlt: string;
+  /** `{nodes}` then `{path}`: what the diagram's description reads. */
+  diagramDesc: string;
   diff: string;
   table: string;
   mindmap: string;
@@ -101,6 +112,15 @@ export const STRINGS: Record<Locale, Strings> = {
     diagramEdge: "edge",
     diagramGroup: "group",
     diagramKeys: "Arrow keys move between its elements; Enter or Space comments on one.",
+    diagramKindFlow: "Flowchart",
+    diagramKindState: "State diagram",
+    diagramKindSequence: "Sequence diagram",
+    diagramKindClass: "Class diagram",
+    diagramKindEr: "Entity-relationship diagram",
+    diagramKindChart: "Chart",
+    diagramNodes: "{n} nodes",
+    diagramAlt: "{title}, {desc}",
+    diagramDesc: "{nodes}: {path}",
     diff: "Diff",
     table: "Table",
     mindmap: "Mind map",
@@ -156,6 +176,15 @@ export const STRINGS: Record<Locale, Strings> = {
     diagramEdge: "連線",
     diagramGroup: "群組",
     diagramKeys: "用方向鍵在元素之間移動，按 Enter 或空白鍵針對它留言。",
+    diagramKindFlow: "流程圖",
+    diagramKindState: "狀態圖",
+    diagramKindSequence: "循序圖",
+    diagramKindClass: "類別圖",
+    diagramKindEr: "實體關聯圖",
+    diagramKindChart: "XY 圖表",
+    diagramNodes: "{n} 個節點",
+    diagramAlt: "{title}，{desc}",
+    diagramDesc: "{nodes}：{path}",
     diff: "差異",
     table: "表格",
     mindmap: "心智圖",

@@ -74,6 +74,13 @@ describe("mermaidSvg", () => {
     expect(mermaidSvg(FLOW)).not.toContain("xml:lang");
   });
 
+  test("the drawing starts with a title and a desc of what it shows, in the source's language", () => {
+    expect(mermaidSvg(FLOW)).toMatch(
+      /^<svg [^>]*role="img"[^>]*>\s*<title>Flowchart<\/title>\s*<desc>3 nodes: Start → Ok\? → Done<\/desc>/,
+    );
+    expect(mermaidSvg("graph TD\n  A[開始] --> B")).toContain("<title>流程圖</title>");
+  });
+
   test("label text cannot inject markup", () => {
     const svg = mermaidSvg('graph TD\n  A["<script>alert(1)</script><img src=x onerror=alert(1)>"] --> B');
     expect(svg).not.toMatch(/<script/i);

@@ -1,6 +1,7 @@
 import type { AlertData, CardsData, DiffData, MermaidData, StatsData, StepStatus, StepsData } from "../core/types.ts";
 import { define, PbsElement } from "./base.ts";
 import { configuration, type DiagramMap, type DiagramTarget } from "./config.ts";
+import { describeDiagram } from "./diagram-alt.ts";
 import { h, inlineNodes, prose, svg } from "./dom.ts";
 import type { Strings } from "./strings.ts";
 
@@ -266,7 +267,12 @@ export class PbsDiagram extends PbsElement<MermaidData> {
     const source = h("pre", null, h("code", null, data.source));
     const figure = h("figure", { part: "diagram", class: "panel diagram" });
     if (shown) {
-      const image = h("img", { part: "image", src: url, alt: this.t("diagram"), loading: "lazy" });
+      const image = h("img", {
+        part: "image",
+        src: url,
+        alt: describeDiagram(data.source, this.strings).alt,
+        loading: "lazy",
+      });
       image.addEventListener("error", () => {
         this.#failed = url;
         this.refresh();
