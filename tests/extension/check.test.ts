@@ -54,6 +54,13 @@ describe("checkText", () => {
     expect(await checkText("prose.md", FILES["prose.md"])).toBeUndefined();
   });
 
+  test("a crowded diagram is a warning, and the file is otherwise clean", async () => {
+    const nodes = Array.from({ length: 11 }, (_, i) => `  N${i} --> N${i + 1}`).join("\n");
+    const text = (await checkText("big.md", `\`\`\`mermaid\ngraph LR\n${nodes}\n\`\`\`\n`)) as string;
+    expect(text).toContain("(warning)");
+    expect(text).toContain("12 nodes");
+  });
+
   test("words the motivating problems for the agent", async () => {
     const text = (await checkText("broken.md", BROKEN)) as string;
     expect(text.split("\n")[0]).toBe("Block problems in broken.md:");

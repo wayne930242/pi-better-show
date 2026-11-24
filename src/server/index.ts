@@ -80,6 +80,43 @@ export function mermaidSvg(source: string, options: SvgOptions = {}): string {
   return out;
 }
 
+/** The widest a drawing may be before a 52rem page shrinks its text too small to read. */
+const WIDE = 900;
+
+/**
+ * Advice on a diagram that will be hard to read: too many nodes, edges, lifelines or entities for its type, or a
+ * drawing so wide that the page shrinks it. Each note is one sentence for the author. Advice only: the diagram still
+ * draws, and a source that does not draw has no notes.
+ */
+export function diagramNotes(source: string): string[] {
+  let svg: string;
+  try {
+    svg = mermaidSvg(source);
+  } catch {
+    return [];
+  }
+  const count = (pattern: RegExp): number => svg.match(pattern)?.length ?? 0;
+  const notes: string[] = [];
+  const over = (n: number, limit: number, thing: string) => {
+    if (n > limit)
+      notes.push(
+        `the diagram has ${n} ${thing} (more than ${limit} is hard to read); split it into an overview and detail diagrams`,
+      );
+  };
+  over(count(/<g class="node"/g), 9, "nodes");
+  over(count(/class="edge"/g), 12, "edges");
+  over(count(/class="actor"/g), 5, "lifelines");
+  over(count(/class="entity"/g), 8, "entities");
+  over(count(/class="class-node"/g), 8, "classes");
+  const width = Number(/viewBox="0 0 ([\d.]+) /.exec(svg)?.[1]);
+  if (width > WIDE) {
+    notes.push(
+      `the diagram is ${Math.round(width)}px wide, too wide for the page; shorten the labels, use TD, or split it`,
+    );
+  }
+  return notes;
+}
+
 /**
  * A Mermaid diagram as Unicode box drawing, or undefined when it cannot be shown right: the source is not a
  * diagram, a line is wider than `width` columns, or it holds wide (CJK, emoji) characters, which the drawing

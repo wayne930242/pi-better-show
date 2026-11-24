@@ -101,6 +101,17 @@ describe("checkBlocks: invalid blocks", () => {
     expect(seen).toEqual(["flowchart LR\n A-->B", "bad diagram"]);
   });
 
+  test("mermaidNotes adds warnings, never errors, and only for a diagram that draws", () => {
+    const mermaidNotes = (source: string) => (source.startsWith("big") ? ["too many nodes", "too wide"] : []);
+    expect(checkBlocks(doc("mermaid", "small"), { mermaidNotes })).toEqual([]);
+    const found = checkBlocks(doc("mermaid", "big one"), { mermaidNotes });
+    expect(found).toHaveLength(2);
+    expect(found[0]).toMatchObject({ kind: "mermaid", line: 4, severity: "warning" });
+    expect(found[0]?.message).toContain("too many nodes");
+    const mermaid = () => "broken";
+    expect(checkBlocks(doc("mermaid", "big one"), { mermaid, mermaidNotes }).map((p) => p.severity)).toEqual(["error"]);
+  });
+
   test("an indented fence keeps the file line", () => {
     const found = only(checkBlocks("para\n\n  ```cards\n  - {title: a # b}\n  ```\n"));
     expect(found).toMatchObject({ kind: "cards", line: 4 });

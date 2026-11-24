@@ -22,6 +22,8 @@ export interface BlockProblem {
 export interface CheckOptions {
   /** Checks a Mermaid source and returns what is wrong with it; core carries no Mermaid parser, a host passes one. */
   mermaid?: (source: string) => string | undefined;
+  /** Advice on a diagram that draws but will be hard to read, one sentence each; reported as warnings. */
+  mermaidNotes?: (source: string) => string[];
 }
 
 interface Shape {
@@ -318,8 +320,8 @@ export function checkBlocks(markdown: string, options: CheckOptions = {}): Block
       });
     } else if (isYamlKind(kind)) {
       checkBody(context);
-    } else if (kind === "mermaid" && options.mermaid) {
-      const problem = options.mermaid(source);
+    } else if (kind === "mermaid" && (options.mermaid || options.mermaidNotes)) {
+      const problem = options.mermaid?.(source);
       if (problem !== undefined) {
         out.push({
           kind,
@@ -328,6 +330,10 @@ export function checkBlocks(markdown: string, options: CheckOptions = {}): Block
           message: `the diagram will not draw: ${problem}`,
           severity: "error",
         });
+      } else if (options.mermaidNotes) {
+        for (const note of options.mermaidNotes(source)) {
+          out.push({ kind, line: line + 1, path: kind, message: note, severity: "warning" });
+        }
       }
     }
     if (!closed) {

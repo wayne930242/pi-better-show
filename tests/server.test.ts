@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { renderMermaidSVG } from "beautiful-mermaid";
 import { parse, toText } from "../src/core/index.ts";
-import { mermaidSvg, mermaidText } from "../src/server/index.ts";
+import { diagramNotes, mermaidSvg, mermaidText } from "../src/server/index.ts";
 
 const FLOW = "graph TD\n  A[Start] --> B{Ok?}\n  B -->|yes| C[Done]";
 
@@ -89,6 +89,44 @@ describe("mermaidSvg", () => {
 
   test("throws on a source it cannot draw", () => {
     expect(() => mermaidSvg("not a diagram")).toThrow();
+  });
+});
+
+describe("diagramNotes", () => {
+  /** The notes that are about how much the diagram holds, not how wide it draws. */
+  const crowd = (source: string) => diagramNotes(source).filter((note) => !note.includes("wide"));
+  const chain = (n: number) =>
+    `graph TD\n${Array.from({ length: n - 1 }, (_, i) => `  N${i} --> N${i + 1}`).join("\n")}`;
+
+  test("a readable diagram has no notes", () => {
+    expect(diagramNotes(FLOW)).toEqual([]);
+    expect(diagramNotes(chain(9))).toEqual([]);
+  });
+
+  test("a flowchart with more than 9 nodes or 12 edges is told to split", () => {
+    expect(diagramNotes(chain(10))).toEqual([expect.stringContaining("10 nodes")]);
+    const dense = `graph TD\n${Array.from({ length: 13 }, () => "  A --> B").join("\n")}`;
+    expect(diagramNotes(dense).join(" ")).toContain("13 edges");
+  });
+
+  test("each diagram type has its own limit", () => {
+    const lanes = (n: number) =>
+      `sequenceDiagram\n${Array.from({ length: n - 1 }, (_, i) => `  P${i}->>P${i + 1}: hi`).join("\n")}`;
+    expect(crowd(lanes(5))).toEqual([]);
+    expect(diagramNotes(lanes(6)).join(" ")).toContain("6 lifelines");
+    const entities = (n: number) =>
+      `erDiagram\n${Array.from({ length: n - 1 }, (_, i) => `  E${i} ||--o{ E${i + 1} : has`).join("\n")}`;
+    expect(crowd(entities(8))).toEqual([]);
+    expect(diagramNotes(entities(9)).join(" ")).toContain("9 entities");
+  });
+
+  test("a drawing wider than 900px is said to shrink in a narrow page", () => {
+    const wide = `graph LR\n${Array.from({ length: 9 }, (_, i) => `  W${i}[A fairly long node label ${i}] --> W${i + 1}`).join("\n")}`;
+    expect(diagramNotes(wide).join(" ")).toContain("wide");
+  });
+
+  test("a source that cannot be drawn has no notes (the error is reported elsewhere)", () => {
+    expect(diagramNotes("not a diagram")).toEqual([]);
   });
 });
 

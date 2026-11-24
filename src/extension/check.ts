@@ -16,10 +16,12 @@ export const hasBlockFence = (markdown: string): boolean => BLOCK_FENCE.test(mar
 export async function checkText(name: string, markdown: string): Promise<string | undefined> {
   if (!hasBlockFence(markdown)) return undefined;
   const { checkBlocks, formatProblems } = await import("../core/check.ts");
-  const mermaid = MERMAID_FENCE.test(markdown) ? (await import("../server/index.ts")).mermaidSvg : undefined;
+  const server = MERMAID_FENCE.test(markdown) ? await import("../server/index.ts") : undefined;
+  const mermaid = server?.mermaidSvg;
   const problems = checkBlocks(markdown, {
     ...(mermaid
       ? {
+          mermaidNotes: server?.diagramNotes,
           mermaid: (source: string) => {
             try {
               mermaid(source);

@@ -441,7 +441,7 @@ Splits a document into `{type: "markdown", text}`, `{type: "block", kind, data, 
 Tells the author what is wrong with the blocks of a file, where `parse` only keeps going.
 
 ```ts
-checkBlocks(markdown: string, options?: { mermaid?: (source: string) => string | undefined }): BlockProblem[]
+checkBlocks(markdown: string, options?: { mermaid?: (source: string) => string | undefined; mermaidNotes?: (source: string) => string[] }): BlockProblem[]
 formatProblems(name: string, problems: BlockProblem[]): string
 
 interface BlockProblem {
@@ -456,7 +456,7 @@ interface BlockProblem {
 <details>
 <summary>What is an error, and what is a warning</summary>
 
-`error`: the block is invalid and the page shows its source (a YAML error is reported at the line that caused it; a flow collection broken by an unquoted ` #` points at the line that opened it). `warning`: the block draws, but part of what was written is lost: a plain value that a ` #` cut short (YAML reads the rest as a comment; the message names the key path and says to quote the value), a key the block does not read at that level (with the known keys, and a "did you mean" for a near miss), or a fence that never closes. Core has no Mermaid parser: pass `options.mermaid`, which returns what is wrong with a diagram source, to check diagrams too. Pure; it loads no more than `parse` does.
+`error`: the block is invalid and the page shows its source (a YAML error is reported at the line that caused it; a flow collection broken by an unquoted ` #` points at the line that opened it). `warning`: the block draws, but part of what was written is lost: a plain value that a ` #` cut short (YAML reads the rest as a comment; the message names the key path and says to quote the value), a key the block does not read at that level (with the known keys, and a "did you mean" for a near miss), or a fence that never closes. Core has no Mermaid parser: pass `options.mermaid`, which returns what is wrong with a diagram source, to check diagrams too, and `options.mermaidNotes` (the server's `diagramNotes`) for advice on a crowded or wide diagram, reported as warnings. Pure; it loads no more than `parse` does.
 
 </details>
 
