@@ -22,3 +22,25 @@ This repository is the `pi-better-show` package: the block vocabulary (core, cus
 - `docs/reference.zh-TW.md` mirrors `docs/reference.md` line for line, and its first line names the English commit it matches. A change to the English file changes the same lines of the twin and moves that commit; `npm --prefix site run check` fails when the headings, line kinds, or backticked tokens no longer match and lists the English commits not yet translated. Each hand-written page under `site/src/content/docs/` has a twin under `zh-tw/` with the same headings, folds, diagrams, and tables, which the same check enforces.
 - Each Mermaid diagram carries a comment naming the source files it was checked against; a change to that code rechecks the diagram.
 - Screenshots in `docs/images` come from `bun run show` on a Markdown file of the examples; `docs/images/blocks/*.png` are the block reference's one-per-kind crops.
+
+## Consumers
+
+pi-roundtable (`~/projects/pi-roundtable`) and pi-straw-boss (`~/projects/pi-straw-boss`) pin exact versions of this package. Neither sees a change until its pin moves. merlin-pai-2 (`~/projects/merlin-pai-2`) pins pi-roundtable, so it follows once a roundtable release carries the new pin.
+
+Before releasing, for each change type run the consumer checks below: link this checkout locally (`bun link` / `npm link`), run, then restore the pin.
+
+| Change | pi-roundtable | pi-straw-boss |
+|---|---|---|
+| `src/core` (parse, kinds, answer encoding, toText) | `bun run typecheck && bun test ./src` | `npm run check && npm run test:one -- tests/blockcount.test.ts tests/blocks-answer.test.ts tests/answered.test.ts` |
+| New or renamed block kind | as above, plus `cd packages/web && bun test --isolate` | as above, plus sync the kind lists (below) |
+| elements, CSS, `--pbs-*` tokens | `cd packages/web && bun test --isolate` (includes the `page.test.ts` byte budget) | `npm run test:one -- tests/pbs-tokens.test.ts tests/raven-square.test.ts tests/blocks-chat.test.ts tests/blocks-doc.test.ts` |
+| `src/server` (`mermaidSvg`, `mermaidText`, colours, alt) | `bun test ./src/core/presentation`; `cd packages/web && bun test --isolate src/diagram-route.test.ts web/blocks.test.tsx` | not affected |
+| `src/extension` (`checkBlocks`, `show_doc`, document contract v2, `cgi-bin:pi-answer`, event names) | not affected | `npm run test:one -- tests/better-show-roundtrip.test.ts tests/documents-v2.test.ts tests/docs-v2.test.ts tests/doc-answer.test.ts tests/docs.test.ts tests/bridge.test.ts` |
+| Release | bump the pin in `package.json` and `packages/web/package.json`, run `bun run check:packages` | bump the pin in `package.json`, run `npm test` |
+
+### Syncs
+
+- New block kind: update the hand-copied kind lists in pi-straw-boss `src/blockcount.ts` and `gui/mdbody.ts`.
+- New `--pbs-*` token: add it to roundtable's `packages/web/web/styles.css` map and to every view in pi-straw-boss (`tests/pbs-tokens.test.ts` lists them all; `gui/pbs.css` must not declare any).
+
+Do not edit consumer repos from here.
