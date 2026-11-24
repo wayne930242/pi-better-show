@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+## 0.8.0 - 2026-11-24
+
+Minor bump: `checkBlocks` takes a new optional `mermaidNotes` hook and the server exports `diagramNotes` and `svgNotes`; `Strings` has new diagram words (hosts that build their own strings add them). The `feedback` answer's shape is unchanged.
+
+- Diagrams draw with the element tokens in the built-in light and dark schemes, accent and muted included, so label boxes match the page in dark mode and labels keep their contrast in light mode. Edges keep the 50% foreground/background mix (at least 3:1).
+- Diagram padding is 20 instead of 40; the font stack adds PingFang TC, Noto Sans TC, and Microsoft JhengHei, and a source with Han characters marks the SVG `xml:lang="zh-Hant"`.
+- A diagram's alt text, the overlay's label, and the SVG's `<title>` and `<desc>` describe the diagram: its type, title, node count, and first edges (separate chains joined with "; "), in English or Traditional Chinese.
+- A drawing more than 1.25 times wider than its panel keeps its own size and the panel scrolls, judged again when the panel resizes or becomes visible; the comment overlay stays aligned.
+- `show_doc` warns, without blocking, when a diagram is crowded (more than 9 nodes or 12 edges in a flowchart, 5 lifelines, 8 entities or classes) or wider than 900px. Each diagram is drawn once per check.
+
 ## 0.7.2 - 2026-11-13
 
 Follow-ups from the 0.7.1 review of diagram comments. The `feedback` answer's shape is unchanged; two quotes read differently where they used to be ambiguous.
