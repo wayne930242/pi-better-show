@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, spyOn, test } from "bun:test";
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { checkText, hasBlockFence } from "../../src/extension/check.ts";
@@ -59,6 +59,18 @@ describe("checkText", () => {
     const text = (await checkText("big.md", `\`\`\`mermaid\ngraph LR\n${nodes}\n\`\`\`\n`)) as string;
     expect(text).toContain("(warning)");
     expect(text).toContain("12 nodes");
+  });
+
+  test("each diagram is drawn once per check", async () => {
+    const server = await import("../../src/server/index.ts");
+    const calls: string[] = [];
+    const real = server.mermaidSvg;
+    const spy = spyOn(await import("beautiful-mermaid"), "renderMermaidSVG");
+    await checkText("one.md", "```mermaid\ngraph TD\n  A --> B\n```\n");
+    calls.push(String(spy.mock.calls.length));
+    spy.mockRestore();
+    expect(real).toBeFunction();
+    expect(calls).toEqual(["1"]);
   });
 
   test("words the motivating problems for the agent", async () => {

@@ -18,13 +18,18 @@ export async function checkText(name: string, markdown: string): Promise<string 
   const { checkBlocks, formatProblems } = await import("../core/check.ts");
   const server = MERMAID_FENCE.test(markdown) ? await import("../server/index.ts") : undefined;
   const mermaid = server?.mermaidSvg;
+  // The check asks for a diagram's error and then its notes: draw each source once.
+  const drawn = new Map<string, string>();
   const problems = checkBlocks(markdown, {
     ...(mermaid
       ? {
-          mermaidNotes: server?.diagramNotes,
+          mermaidNotes: (source: string) => {
+            const svg = drawn.get(source);
+            return svg === undefined ? [] : (server?.svgNotes(svg) ?? []);
+          },
           mermaid: (source: string) => {
             try {
-              mermaid(source);
+              drawn.set(source, mermaid(source));
               return undefined;
             } catch (error) {
               return ((error instanceof Error ? error.message : String(error)).split("\n")[0] as string).trim();

@@ -87,12 +87,15 @@ const WIDE = 900;
  * draws, and a source that does not draw has no notes.
  */
 export function diagramNotes(source: string): string[] {
-  let svg: string;
   try {
-    svg = mermaidSvg(source);
+    return svgNotes(mermaidSvg(source));
   } catch {
     return [];
   }
+}
+
+/** `diagramNotes` for a drawing already made by `mermaidSvg`, so a host that has the SVG need not draw again. */
+export function svgNotes(svg: string): string[] {
   const count = (pattern: RegExp): number => svg.match(pattern)?.length ?? 0;
   const notes: string[] = [];
   const over = (n: number, limit: number, thing: string) => {
