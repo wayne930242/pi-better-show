@@ -46,6 +46,8 @@ const displayCss = `
 
 .diagram { margin: 0; text-align: center; overflow: auto; }
 .diagram img { display: block; max-width: 100%; height: auto; margin: 0 auto; }
+.diagram[data-wide] img { max-width: none; }
+.diagram[data-wide] .frame { max-width: none; }
 .diagram .frame { position: relative; width: fit-content; max-width: 100%; margin: 0 auto; }
 .diagram .targets { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
 .targets .hit { cursor: pointer; outline: none; }
@@ -252,6 +254,9 @@ export class PbsDiff extends PbsElement<DiffData> {
   }
 }
 
+/** A drawing wider than this many panel widths is shown at its own size, scrolled. */
+const WIDE_RATIO = 1.25;
+
 export class PbsDiagram extends PbsElement<MermaidData> {
   static override css = displayCss;
   /** A URL whose image failed to load; the source is shown instead. */
@@ -272,6 +277,11 @@ export class PbsDiagram extends PbsElement<MermaidData> {
         src: url,
         alt: describeDiagram(data.source, this.strings).alt,
         loading: "lazy",
+      });
+      // A drawing far wider than the panel would shrink to unreadable text: keep its size and let the panel scroll.
+      image.addEventListener("load", () => {
+        const wide = figure.clientWidth > 0 && image.naturalWidth > figure.clientWidth * WIDE_RATIO;
+        figure.toggleAttribute("data-wide", wide);
       });
       image.addEventListener("error", () => {
         this.#failed = url;

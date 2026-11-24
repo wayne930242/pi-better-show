@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import type { AlertData, CardsData, DiffData, MermaidData, StatsData, StepsData } from "../../src/core/types.ts";
+import { PbsDiagram } from "../../src/elements/display.ts";
 import { configure, resetConfiguration } from "../../src/elements/index.ts";
 import { all, cleanup, expectCspSafe, expectInert, mount, one, PROBE_TEXT, text } from "./helpers.ts";
 
@@ -179,6 +180,29 @@ describe("pbs-diagram", () => {
     expect(one<HTMLImageElement>(mount("pbs-diagram", data, { lang: "zh-TW" }), "img").getAttribute("alt")).toBe(
       "流程圖，2 個節點：A → B",
     );
+  });
+
+  test("a drawing much wider than its panel keeps its size and scrolls, a fitting one shrinks to fit", () => {
+    configure({ diagramUrl: () => "/d.svg" });
+    const loaded = (natural: number, panel: number) => {
+      const el = mount("pbs-diagram", data);
+      const figure = one(el, "figure");
+      Object.defineProperty(figure, "clientWidth", { value: panel });
+      const image = one<HTMLImageElement>(el, "img");
+      Object.defineProperty(image, "naturalWidth", { value: natural });
+      image.dispatchEvent(new Event("load"));
+      return figure.hasAttribute("data-wide");
+    };
+    expect(loaded(1544, 760)).toBe(true);
+    expect(loaded(900, 760)).toBe(false);
+    expect(loaded(500, 760)).toBe(false);
+    expect(loaded(500, 0)).toBe(false);
+  });
+
+  test("a wide drawing's frame grows with the image, so the overlay stays on it", () => {
+    const css = (PbsDiagram as unknown as { css: string }).css;
+    expect(css).toMatch(/\.diagram\[data-wide\] img \{[^}]*max-width: none/);
+    expect(css).toMatch(/\.diagram\[data-wide\] \.frame \{[^}]*max-width: none/);
   });
 
   test("an image that fails to load falls back to the source", () => {
