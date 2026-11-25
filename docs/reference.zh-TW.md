@@ -1,4 +1,4 @@
-# pi-better-show 參考 <!-- source: docs/reference.md @ 64b5fe7 -->
+# pi-better-show 參考 <!-- source: docs/reference.md @ 1894893 -->
 
 [README](../README.zh-TW.md) 背後的完整契約：每一種區塊、core、server、元素與 React 的 API，以及 `show_doc` extension 的細節。請找到需要的那一節，其餘可以略過。
 
@@ -201,7 +201,7 @@ No feedback on: B (light header)
 - 項目依序叫 A、B、C...，除非 `name` 另有指定；答案寫成 `name (label)`。
 - `pick: true` 讓每個項目有一個單選鈕（填字串則設定它的標籤）；`columns` 是 1 到 6。
 - 留言欄留白代表沒有意見，所以每個欄位都留白的 review 仍然是一份答案。
-- 圖片可以在燈箱中放大。
+- 圖片可以在燈箱中放大，旁邊就是該項目的回饋框；「上一張」「下一張」（或在回饋框外按左右方向鍵）會依序切換這份回饋的圖片，到頭會繞回。
 
 </details>
 
@@ -574,7 +574,7 @@ el.answered = event.detail.fields;           // once delivered: locks the elemen
 | `pbs-cards` | `cards` | `CardsData` | | `grid` `card` `title` `icon` `body` |
 | `pbs-options` | `options` | `OptionsData` | `pick` | `grid` `option` `title` `badge` `body` `pros` `cons` `actions` `pick` `status` |
 | `pbs-form` | `form` | `FormData` | `form` | `form` `title` `question` `label` `hint` `choices` `choice` `badge` `other` `textarea` `error` `actions` `submit` `status` `sent` |
-| `pbs-review` | `review` | `ReviewData` | `review` | `review` `title` `items` `item` `item-title` `pick` `media` `image` `enlarge` `frame` `unavailable` `body` `comment` `actions` `submit` `status` `lightbox` `close` `sent` |
+| `pbs-review` | `review` | `ReviewData` | `review` | `review` `title` `items` `item` `item-title` `pick` `media` `image` `enlarge` `frame` `unavailable` `body` `comment` `actions` `submit` `status` `lightbox` `lightbox-image` `lightbox-title` `position` `nav` `previous` `next` `lightbox-comment` `close` `sent` |
 | `pbs-mindmap` | `mindmap` | `MindmapData` | | `mindmap` `tree` `item` `node` `toggle` `label` `group` |
 | `pbs-suggest` | `suggest` | `SuggestData` | `suggest` | `suggest` `chips` `chip` `status` |
 | `pbs-checklist` | `checklist` | `ChecklistData` | `checklist` | `checklist` `title` `items` `item` `progress` `actions` `submit` `status` `sent` |
