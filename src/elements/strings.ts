@@ -18,6 +18,9 @@ export interface Strings {
   reviewFallback: string;
   enlarge: string;
   close: string;
+  previousImage: string;
+  nextImage: string;
+  imagePosition: string;
   imageUnavailable: string;
   pageUnavailable: string;
   filter: string;
@@ -88,6 +91,9 @@ export const STRINGS: Record<Locale, Strings> = {
     reviewFallback: "Review",
     enlarge: "Enlarge",
     close: "Close",
+    previousImage: "Previous",
+    nextImage: "Next",
+    imagePosition: "{n} of {total}",
     imageUnavailable: "Image not available",
     pageUnavailable: "Prototype page, not shown here: ",
     filter: "Filter rows",
@@ -152,6 +158,9 @@ export const STRINGS: Record<Locale, Strings> = {
     reviewFallback: "回饋",
     enlarge: "放大",
     close: "關閉",
+    previousImage: "上一張",
+    nextImage: "下一張",
+    imagePosition: "第 {n} / {total} 張",
     imageUnavailable: "無法顯示圖片",
     pageUnavailable: "原型頁面（此處不顯示）：",
     filter: "篩選列",

@@ -201,7 +201,7 @@ No feedback on: B (light header)
 - Items are named A, B, C... unless `name` says otherwise; the answer writes `name (label)`.
 - `pick: true` shows a radio per item (a string sets its label); `columns` is 1 to 6.
 - A blank comment box means no feedback, so a review with every box blank is still an answer.
-- A picture opens enlarged in a lightbox.
+- A picture opens enlarged in a lightbox, with the item's comment box beside it; Previous and Next (or the left and right arrow keys outside the box) step through the review's pictures, wrapping at the ends.
 
 </details>
 
@@ -574,7 +574,7 @@ A host gives an element the block's parsed `data` and listens for `pbs-answer` (
 | `pbs-cards` | `cards` | `CardsData` | | `grid` `card` `title` `icon` `body` |
 | `pbs-options` | `options` | `OptionsData` | `pick` | `grid` `option` `title` `badge` `body` `pros` `cons` `actions` `pick` `status` |
 | `pbs-form` | `form` | `FormData` | `form` | `form` `title` `question` `label` `hint` `choices` `choice` `badge` `other` `textarea` `error` `actions` `submit` `status` `sent` |
-| `pbs-review` | `review` | `ReviewData` | `review` | `review` `title` `items` `item` `item-title` `pick` `media` `image` `enlarge` `frame` `unavailable` `body` `comment` `actions` `submit` `status` `lightbox` `close` `sent` |
+| `pbs-review` | `review` | `ReviewData` | `review` | `review` `title` `items` `item` `item-title` `pick` `media` `image` `enlarge` `frame` `unavailable` `body` `comment` `actions` `submit` `status` `lightbox` `lightbox-image` `lightbox-title` `position` `nav` `previous` `next` `lightbox-comment` `close` `sent` |
 | `pbs-mindmap` | `mindmap` | `MindmapData` | | `mindmap` `tree` `item` `node` `toggle` `label` `group` |
 | `pbs-suggest` | `suggest` | `SuggestData` | `suggest` | `suggest` `chips` `chip` `status` |
 | `pbs-checklist` | `checklist` | `ChecklistData` | `checklist` | `checklist` `title` `items` `item` `progress` `actions` `submit` `status` `sent` |

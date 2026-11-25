@@ -313,8 +313,77 @@ describe("pbs-review", () => {
     const dialog = one<HTMLDialogElement>(el, "dialog");
     expect(dialog.getAttribute("aria-label")).toBe("A (dark)");
     expect(dialog.querySelector("img")?.getAttribute("src")).toBe("https://example.com/a.png");
+    expect(one(el, '[part="previous"]').hidden).toBe(true);
     click(one(el, '[part="close"]'));
     expect(root(el).querySelector("dialog")).toBeNull();
+  });
+
+  const gallery: ReviewData = {
+    items: [
+      { name: "A", image: "https://example.com/a.png" },
+      { name: "B", page: "proto/b.html" },
+      { name: "C", image: "https://example.com/c.png" },
+      { name: "D", image: "https://example.com/d.png" },
+    ],
+  };
+  const shownSrc = (el: Element) => one<HTMLDialogElement>(el, "dialog").querySelector("img")?.getAttribute("src");
+
+  test("the lightbox steps through the pictures with Previous, Next, and the arrow keys, wrapping at the ends", () => {
+    const el = mount("pbs-review", gallery);
+    click(all(el, '[part="enlarge"]')[1] as HTMLElement);
+    expect(shownSrc(el)).toBe("https://example.com/c.png");
+    expect(one(el, '[part="position"]').textContent).toBe("2 of 3");
+    click(one(el, '[part="next"]'));
+    expect(shownSrc(el)).toBe("https://example.com/d.png");
+    expect(one(el, "dialog").getAttribute("aria-label")).toBe("D");
+    click(one(el, '[part="next"]'));
+    expect(shownSrc(el)).toBe("https://example.com/a.png");
+    click(one(el, '[part="previous"]'));
+    expect(shownSrc(el)).toBe("https://example.com/d.png");
+    const key = (target: Element, name: string) =>
+      target.dispatchEvent(new KeyboardEvent("keydown", { key: name, bubbles: true, composed: true }));
+    key(one(el, '[part="next"]'), "ArrowLeft");
+    expect(shownSrc(el)).toBe("https://example.com/c.png");
+    // Arrow keys inside the comment box move the caret, not the picture.
+    key(one(el, '[part="lightbox-comment"]'), "ArrowRight");
+    expect(shownSrc(el)).toBe("https://example.com/c.png");
+  });
+
+  test("the lightbox's comment box is the shown item's box, both ways, and its text is sent", () => {
+    const got = answers();
+    const el = mount("pbs-review", gallery);
+    const boxes = all<HTMLTextAreaElement>(el, '[part="comment"]');
+    type(boxes[2] as HTMLTextAreaElement, "C before");
+    click(all(el, '[part="enlarge"]')[0] as HTMLElement);
+    const note = one<HTMLTextAreaElement>(el, '[part="lightbox-comment"]');
+    expect(note.value).toBe("");
+    type(note, "A in the lightbox");
+    expect((boxes[0] as HTMLTextAreaElement).value).toBe("A in the lightbox");
+    click(one(el, '[part="next"]'));
+    expect(note.value).toBe("C before");
+    expect(note.getAttribute("aria-label")).toBe("C: Feedback (leave blank for none)");
+    type(note, "C after");
+    click(one(el, '[part="close"]'));
+    expect((boxes[2] as HTMLTextAreaElement).value).toBe("C after");
+    click(one(el, '[part="submit"]'));
+    got.stop();
+    expect(got.details[0]?.fields).toEqual([
+      ["title", "Review"],
+      ["item", "A"],
+      ["comment", "A in the lightbox"],
+      ["item", "C"],
+      ["comment", "C after"],
+      ["silent", "B, D"],
+    ]);
+  });
+
+  test("a picture that fails to load drops out of the lightbox", () => {
+    const el = mount("pbs-review", gallery);
+    (all(el, "img")[1] as HTMLElement).dispatchEvent(new Event("error"));
+    click(all(el, '[part="enlarge"]')[0] as HTMLElement);
+    expect(one(el, '[part="position"]').textContent).toBe("1 of 2");
+    click(one(el, '[part="next"]'));
+    expect(shownSrc(el)).toBe("https://example.com/d.png");
   });
 
   test("sends the pick, each comment, and the items left blank as the review Answer", () => {

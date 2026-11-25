@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- A review's lightbox steps through the review's pictures: Previous and Next, or the left and right arrow keys outside the comment box, wrap at the ends and skip pictures that failed to load. Beside the picture sits that item's comment box, kept in step with the box on the page, so feedback on one picture can be written while it is enlarged. On a narrow screen the box goes below the picture. `Strings` has new words `previousImage`, `nextImage`, and `imagePosition` (hosts that build their own strings add them); new parts `lightbox-image`, `lightbox-title`, `position`, `nav`, `previous`, `next`, `lightbox-comment`.
+
 ## 0.8.0 - 2026-11-24
 
 Minor bump: `checkBlocks` takes a new optional `mermaidNotes` hook and the server exports `diagramNotes` and `svgNotes`; `Strings` has new diagram words (hosts that build their own strings add them). The `feedback` answer's shape is unchanged.

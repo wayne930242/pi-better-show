@@ -26,17 +26,39 @@ const reviewCss = `${controlCss}
 .item .media .btn { padding: 0.1em 0.7em; font-size: 0.85em; }
 .item .copy { min-width: 0; overflow-x: auto; }
 .item textarea { min-height: 4rem; }
-dialog { max-width: 96vw; max-height: 96vh; padding: 0; border: 0; background: transparent; color: var(--_fg); }
+dialog { width: min(96vw, 110rem); max-width: 96vw; max-height: 96vh; overflow: auto; padding: 0; border: 0; background: transparent; color: var(--_fg); }
 dialog::backdrop { background: rgb(0 0 0 / 0.82); }
-dialog img { display: block; max-width: 94vw; max-height: 88vh; margin: 0 auto; object-fit: contain; border-radius: var(--_radius); background: var(--_bg); }
-dialog .btn { display: block; margin: 0.5rem auto 0; }
+.lightbox { display: grid; grid-template-columns: minmax(0, 1fr) minmax(16rem, 22rem); gap: var(--_gap); align-items: start; }
+.lightbox .stage { min-width: 0; display: flex; justify-content: center; }
+.lightbox .stage img { display: block; max-width: 100%; max-height: 92vh; object-fit: contain; border-radius: var(--_radius); background: var(--_bg); }
+.lightbox .side { display: flex; flex-direction: column; gap: 0.6rem; padding: 0.9rem; border: 1px solid var(--_line); border-radius: var(--_radius); background: var(--_bg); }
+.lightbox .head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 0.2rem 0.75rem; }
+.lightbox .nav { display: flex; gap: 0.5rem; }
+.lightbox .nav .btn { flex: 1; }
+.lightbox textarea { min-height: 8rem; }
+@media (max-width: 48rem) {
+  .lightbox { grid-template-columns: minmax(0, 1fr); }
+  .lightbox .stage img { max-height: 60vh; }
+}
 `;
+
+/** An item's picture the lightbox can show: its item, the resolved URL, and the button that opened it. */
+interface Shown {
+  index: number;
+  url: string;
+  name: string;
+  opener: HTMLElement;
+}
 
 export class PbsReview extends PbsElement<ReviewData> {
   static override css = reviewCss;
   #picked: string | undefined;
   #comments: string[] | undefined;
   #note = "";
+  /** The pictures of the current view in item order, which the lightbox steps through. */
+  #shown: Shown[] = [];
+  /** Each item's comment box of the current view, kept in step with the lightbox's box. */
+  #boxes: HTMLTextAreaElement[] = [];
   readonly #group = uid("pbs-pick");
 
   protected override reset(): void {
@@ -50,6 +72,8 @@ export class PbsReview extends PbsElement<ReviewData> {
     if (this.answered) return this.sentView(title);
     this.#comments ??= data.items.map(() => "");
     const comments = this.#comments;
+    this.#shown = [];
+    this.#boxes = [];
     const pickLabel = data.pick === undefined ? undefined : data.pick === true ? this.t("pick") : data.pick;
     const items = data.items.map((item, index) => this.item(item, index, pickLabel, comments));
     const grid = h(
@@ -106,7 +130,7 @@ export class PbsReview extends PbsElement<ReviewData> {
     }
     const media: Child[] = [];
     const config = configuration();
-    if (item.image) media.push(this.image(item.image, name, config.imageUrl(item.image)));
+    if (item.image) media.push(this.image(item.image, name, index, config.imageUrl(item.image), comments));
     if (item.page) {
       const url = config.pageUrl?.(item.page);
       media.push(
@@ -131,6 +155,7 @@ export class PbsReview extends PbsElement<ReviewData> {
     note.addEventListener("input", () => {
       comments[index] = note.value;
     });
+    this.#boxes[index] = note;
     return h(
       "article",
       { part: "item", class: "panel item", "data-picked": this.#picked === item.name },
@@ -142,34 +167,102 @@ export class PbsReview extends PbsElement<ReviewData> {
   }
 
   /** An image the host resolved, with an enlarge button; a reference the host will not resolve, or one that fails to load, shows a note. */
-  private image(ref: string, name: string, url: string | undefined): Node {
+  private image(ref: string, name: string, index: number, url: string | undefined, comments: string[]): Node {
     const missing = () =>
       h("p", { part: "unavailable", class: "muted" }, `${this.t("imageUnavailable")}: `, h("code", null, ref));
     if (url === undefined) return missing();
     const wrap = h("div", { class: "media" });
     const image = h("img", { part: "image", src: url, alt: name, loading: "lazy" });
     const enlarge = h("button", { type: "button", part: "enlarge", class: "btn quiet" }, this.t("enlarge"));
-    enlarge.addEventListener("click", () => this.lightbox(url, name, enlarge));
-    image.addEventListener("error", () => wrap.replaceChildren(missing()));
+    const shown: Shown = { index, url, name, opener: enlarge };
+    this.#shown.push(shown);
+    enlarge.addEventListener("click", () => this.lightbox(shown, comments));
+    image.addEventListener("error", () => {
+      this.#shown = this.#shown.filter((entry) => entry !== shown);
+      wrap.replaceChildren(missing());
+    });
     wrap.append(image, enlarge);
     return wrap;
   }
 
-  private lightbox(url: string, name: string, opener: HTMLElement): void {
+  /**
+   * One modal for every picture of the review: Previous and Next (or the arrow keys outside the comment box) step
+   * through them in item order, wrapping at the ends, and the box beside the picture is that item's comment box.
+   */
+  private lightbox(first: Shown, comments: string[]): void {
+    let current = first;
+    const picture = h("img", { part: "lightbox-image" });
+    const heading = h("span", { part: "lightbox-title", class: "heading" });
+    const position = h("span", { part: "position", class: "muted" });
+    const previous = h(
+      "button",
+      { type: "button", part: "previous", class: "btn quiet" },
+      `‹ ${this.t("previousImage")}`,
+    );
+    const next = h("button", { type: "button", part: "next", class: "btn quiet" }, `${this.t("nextImage")} ›`);
+    const note = h("textarea", { part: "lightbox-comment", placeholder: this.t("feedbackNote") });
     const close = h("button", { type: "button", part: "close", class: "btn" }, this.t("close"));
-    const dialog = h("dialog", { part: "lightbox", "aria-label": name }, h("img", { src: url, alt: name }), close);
+    const dialog = h(
+      "dialog",
+      { part: "lightbox" },
+      h(
+        "div",
+        { class: "lightbox" },
+        h("div", { class: "stage" }, picture),
+        h(
+          "div",
+          { class: "side" },
+          h("div", { class: "head" }, heading, position),
+          h("div", { part: "nav", class: "nav" }, previous, next),
+          note,
+          close,
+        ),
+      ),
+    );
+    const show = (entry: Shown) => {
+      current = entry;
+      const shown = this.#shown;
+      picture.src = entry.url;
+      picture.alt = entry.name;
+      dialog.setAttribute("aria-label", entry.name);
+      heading.replaceChildren(...inlineNodes(entry.name));
+      position.textContent = this.t("imagePosition", { n: shown.indexOf(entry) + 1, total: shown.length });
+      previous.hidden = next.hidden = shown.length < 2;
+      note.value = comments[entry.index] ?? "";
+      note.setAttribute("aria-label", `${entry.name}: ${this.t("feedbackNote")}`);
+    };
+    const step = (by: number) => {
+      const shown = this.#shown;
+      if (shown.length === 0) return;
+      const at = Math.max(0, shown.indexOf(current));
+      show(shown[(at + by + shown.length) % shown.length] as Shown);
+    };
     const end = () => dialog.close();
+    note.addEventListener("input", () => {
+      comments[current.index] = note.value;
+      const box = this.#boxes[current.index];
+      if (box) box.value = note.value;
+    });
+    previous.addEventListener("click", () => step(-1));
+    next.addEventListener("click", () => step(1));
     close.addEventListener("click", end);
+    dialog.addEventListener("keydown", (event) => {
+      if (event.target === note || event.altKey || event.ctrlKey || event.metaKey) return;
+      if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+      event.preventDefault();
+      step(event.key === "ArrowLeft" ? -1 : 1);
+    });
     dialog.addEventListener("click", (event) => {
       if (event.target === dialog) end();
     });
     dialog.addEventListener("close", () => {
       dialog.remove();
-      opener.focus();
+      (current.opener.isConnected ? current.opener : first.opener).focus();
     });
-    opener.after(dialog);
+    show(first);
+    (first.opener.closest(".review") ?? first.opener.parentNode)?.append(dialog);
     dialog.showModal();
-    close.focus();
+    (next.hidden ? note : next).focus();
   }
 
   /** The locked view: the pick, each comment, and the items left blank. */
