@@ -152,6 +152,49 @@ body.pbs-host {
   font-size: 0.9rem;
 }
 
+/* An answer that did not reach the agent: its text, to copy and paste into pi. */
+.pbs-fallback {
+  width: min(24rem, calc(100vw - 2rem));
+  box-sizing: border-box;
+}
+.pbs-fallback p {
+  margin: 0 0 0.4em;
+}
+.pbs-fallback textarea {
+  width: 100%;
+  box-sizing: border-box;
+  font:
+    0.8rem / 1.4 ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace;
+  padding: 0.35rem 0.5rem;
+  background: #111;
+  color: #eee;
+  border: 1px solid #555;
+  border-radius: 4px;
+}
+.pbs-fallback-actions,
+.pbs-fb-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+.pbs-fallback-actions button {
+  margin-top: 0.4rem;
+  padding: 0.3rem 0.8rem;
+  font: inherit;
+  cursor: pointer;
+  background: #fff;
+  color: #111;
+  border: 0;
+  border-radius: 6px;
+}
+.pbs-fallback-actions .pbs-fallback-close {
+  background: transparent;
+  color: #fff;
+  border: 1px solid #777;
+}
+
 /* Feedback panel */
 .pbs-fb-toggle {
   position: fixed;

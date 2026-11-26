@@ -1,4 +1,6 @@
+import { encodeAnswer } from "../../core/answer.ts";
 import type { Answer } from "../../core/types.ts";
+import { copyButton, type FallbackWords, failureReason } from "./fallback.ts";
 
 export interface FeedbackItem {
   quote: string;
@@ -7,7 +9,7 @@ export interface FeedbackItem {
   ref?: string;
 }
 
-export interface FeedbackWords {
+export interface FeedbackWords extends FallbackWords {
   feedback: string;
   comment: string;
   heading: string;
@@ -20,8 +22,9 @@ export interface FeedbackWords {
   sent: string;
   empty: string;
   remove: string;
-  notSent: string;
   commentLabel: string;
+  /** Follows a failed send's reason in the panel: the Copy button is the way left. */
+  useCopy: string;
 }
 
 const ZH: FeedbackWords = {
@@ -38,6 +41,13 @@ const ZH: FeedbackWords = {
   remove: "移除",
   notSent: "沒送出：",
   commentLabel: "你的留言",
+  useCopy: "可以按「複製」，貼到 pi 的對話框送出。",
+  serverGone: "頁面伺服器沒有回應（pi 可能已重新載入或結束）",
+  pasteHint: "複製下面的內容，貼到 pi 的對話框送出。",
+  copy: "複製",
+  copied: "已複製",
+  copyFailed: "複製失敗，請手動選取",
+  close: "關閉",
 };
 const EN: FeedbackWords = {
   feedback: "Feedback",
@@ -53,6 +63,13 @@ const EN: FeedbackWords = {
   remove: "Remove",
   notSent: "Not sent: ",
   commentLabel: "Your comment",
+  useCopy: "Use Copy and paste it into pi.",
+  serverGone: "the page server did not answer (pi may have reloaded or quit)",
+  pasteHint: "Copy this and paste it into pi.",
+  copy: "Copy",
+  copied: "Copied",
+  copyFailed: "Copy failed; select the text by hand",
+  close: "Close",
 };
 
 export const wordsFor = (lang: string): FeedbackWords => (/^zh/i.test(lang) ? ZH : EN);
@@ -194,7 +211,19 @@ export function mountFeedback(options: FeedbackOptions): {
   const sendButton = make("button", { type: "button", class: "pbs-fb-send", textContent: words.send });
   const status = make("p", { class: "pbs-fb-status" });
   status.setAttribute("role", "status");
-  panel.append(heading, hint, list, overallBox, sendButton, status);
+  const hasDraft = (): boolean => items.length > 0 || overall.trim() !== "";
+  // The way around a send that fails: the same text the agent would read, for the user to paste into pi.
+  const copy = copyButton(
+    words,
+    () => (hasDraft() ? encodeAnswer(feedbackAnswer(options.page, items, overall)) : undefined),
+    "pbs-fb-copy",
+    () => {
+      status.textContent = words.empty;
+    },
+  );
+  const actions = make("div", { class: "pbs-fb-actions" });
+  actions.append(sendButton, copy);
+  panel.append(heading, hint, list, overallBox, actions, status);
   const add = make("button", { type: "button", class: "pbs-fb-add", textContent: words.comment, hidden: true });
   const root = make("div", { class: "pbs-fb" });
   root.append(toggle, panel, add);
@@ -298,7 +327,7 @@ export function mountFeedback(options: FeedbackOptions): {
     open(items.length - 1);
   });
   sendButton.addEventListener("click", () => {
-    if (items.length === 0 && !overall.trim()) {
+    if (!hasDraft()) {
       status.textContent = words.empty;
       return;
     }
@@ -317,7 +346,7 @@ export function mountFeedback(options: FeedbackOptions): {
           status.textContent = words.sent;
         },
         (error: unknown) => {
-          status.textContent = `${words.notSent}${error instanceof Error ? error.message : String(error)}`;
+          status.textContent = `${words.notSent}${failureReason(error, words)} ${words.useCopy}`;
         },
       )
       .finally(() => {

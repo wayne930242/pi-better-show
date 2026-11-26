@@ -266,7 +266,9 @@ describe("the feedback panel", () => {
     });
     document.querySelector<HTMLButtonElement>(".pbs-fb-send")?.click();
     await Bun.sleep(10);
-    expect(document.querySelector(".pbs-fb-status")?.textContent).toBe("Not sent: closed");
+    expect(document.querySelector(".pbs-fb-status")?.textContent).toBe(
+      "Not sent: closed Use Copy and paste it into pi.",
+    );
     expect(store.get("k")).toContain("keep me");
     panel.destroy();
   });

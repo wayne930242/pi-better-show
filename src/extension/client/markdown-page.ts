@@ -1,5 +1,6 @@
 import type { Answer } from "../../core/types.ts";
 import { diagramQuote, diagramRef, requoteDiagram } from "./diagram-map.ts";
+import { answerText, failureReason, showFailure } from "./fallback.ts";
 import { type FeedbackWords, mountFeedback } from "./feedback.ts";
 import type { AnswerReply } from "./host-config.ts";
 
@@ -19,13 +20,11 @@ export interface PageOptions {
  */
 export function mountPage(options: PageOptions): { destroy: () => void } {
   const { words, post } = options;
-  const toast = (text: string): void => {
-    const box = document.createElement("div");
-    box.className = "pbs-toast";
-    box.setAttribute("role", "status");
-    box.textContent = text;
-    document.body.append(box);
-    setTimeout(() => box.remove(), 5000);
+  /** A refused or failed answer reopens its block, and the notice offers its text to paste into pi. */
+  const failed = (answer: Answer, element: { answered?: unknown } | null, reason: string): void => {
+    // A pick locks itself once taken; clearing `answered` reopens it so the user can try again.
+    if (element) element.answered = undefined;
+    showFailure(words, reason, reason === "empty" ? undefined : answerText(answer));
   };
 
   const onAnswer = (event: Event): void => {
@@ -33,15 +32,9 @@ export function mountPage(options: PageOptions): { destroy: () => void } {
     const element = event.target as (HTMLElement & { answered?: unknown }) | null;
     post(answer).then(
       (reply) => {
-        if (reply.accepted) return;
-        // A pick locks itself once taken; clearing `answered` reopens it so the user can try again.
-        if (element) element.answered = undefined;
-        toast(`${words.notSent}${reply.reason ?? "refused"}`);
+        if (!reply.accepted) failed(answer, element, reply.reason ?? "refused");
       },
-      (error: unknown) => {
-        if (element) element.answered = undefined;
-        toast(`${words.notSent}${error instanceof Error ? error.message : String(error)}`);
-      },
+      (error: unknown) => failed(answer, element, failureReason(error, words)),
     );
   };
 

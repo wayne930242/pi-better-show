@@ -744,6 +744,8 @@ Diagrams are drawn on the server, in the page's colour scheme. Images and links 
 Select a passage to comment on it, or click a node, an edge, or a subgraph title in a flowchart or state diagram (from the keyboard: Tab to the diagram, the arrow keys to the element, then Enter or Space; Escape in the panel goes back to it, unless it ends an input method's composition).
 The panel collects comments and an overall note and sends them in one message; its drafts survive the reload an agent's edit causes.
 It is an ordinary `feedback` answer: each quote with its comment, then `Overall: …`.
+Its Copy button puts that same message on the clipboard and keeps the drafts, for pasting into pi when a send fails.
+Any answer that does not reach the agent, from a block, the panel, or an agent page, leaves a notice that stays until closed: why it was not sent (a page server that does not answer means pi reloaded or quit), the message the agent would have read, and a Copy button; a block reopens for another try.
 
 ### Diagram comments
 

@@ -202,3 +202,41 @@ describe("a diagram comment from the keyboard", () => {
     expect(document.activeElement).toBe(box);
   });
 });
+
+describe("a block's answer that does not reach the agent", () => {
+  const answer: Answer = { kind: "pick", title: "Plan", fields: [["picked", "B"]] };
+  const send = (post: (answer: Answer) => Promise<{ accepted: boolean; reason?: string }>) => {
+    page?.destroy();
+    cleanup();
+    page = mountPage({ page: "Plan", words: wordsFor("en"), storage: session(), storageKey: "k", post });
+    const block = document.createElement("div") as HTMLDivElement & { answered?: unknown };
+    block.answered = { picked: "B" };
+    document.body.append(block);
+    block.dispatchEvent(new CustomEvent("pbs-answer", { bubbles: true, detail: answer }));
+    return block;
+  };
+
+  test("reopens the block and keeps its text on screen to copy into pi", async () => {
+    const block = send(async () => {
+      throw new TypeError("Failed to fetch");
+    });
+    await Bun.sleep(10);
+    expect(block.answered).toBeUndefined();
+    expect(document.querySelector(".pbs-fallback p")?.textContent).toBe(
+      "Not sent: the page server did not answer (pi may have reloaded or quit)",
+    );
+    expect(document.querySelector<HTMLTextAreaElement>(".pbs-fallback textarea")?.value).toBe(
+      'User picked "B" for "Plan".',
+    );
+    document.querySelector<HTMLElement>(".pbs-fallback .pbs-copy")?.click();
+    await Bun.sleep(10);
+    expect(await navigator.clipboard.readText()).toBe('User picked "B" for "Plan".');
+  });
+
+  test("an empty answer only says why, with nothing to copy", async () => {
+    send(async () => ({ accepted: false, reason: "empty" }));
+    await Bun.sleep(10);
+    expect(document.querySelector(".pbs-fallback p")?.textContent).toBe("Not sent: empty");
+    expect(document.querySelector(".pbs-fallback textarea")).toBeNull();
+  });
+});

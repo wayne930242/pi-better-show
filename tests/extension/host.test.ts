@@ -1,4 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { encodeAnswer } from "../../src/core/answer.ts";
+import type { Answer } from "../../src/core/types.ts";
 import { feedbackAnswer, wordsFor } from "../../src/extension/client/feedback.ts";
 import { mountHost } from "../../src/extension/client/host-page.ts";
 
@@ -8,7 +10,7 @@ interface Posted {
 }
 
 /** A host page as the server builds it, with a frame whose window is a stand-in (frames never load under happy-dom). */
-function setup(accepted = true) {
+function setup(accepted: boolean | "unreachable" = true) {
   document.body.innerHTML = '<iframe class="pbs-frame"></iframe>';
   const frame = document.querySelector("iframe") as HTMLIFrameElement;
   const toFrame: unknown[] = [];
@@ -29,6 +31,8 @@ function setup(accepted = true) {
     storageKey: "k",
     post: async (url, body) => {
       posted.push({ url, body });
+      // What fetch rejects with when the page server is gone.
+      if (accepted === "unreachable") throw new TypeError("Failed to fetch");
       return accepted ? { accepted: true } : { accepted: false, reason: "closed" };
     },
   });
@@ -130,8 +134,41 @@ describe("the host page's feedback panel", () => {
     overall.dispatchEvent(new Event("input"));
     click(".pbs-fb-send");
     await Bun.sleep(10);
-    expect(document.querySelector(".pbs-fb-status")?.textContent).toBe("Not sent: closed");
+    expect(document.querySelector(".pbs-fb-status")?.textContent).toBe(
+      "Not sent: closed Use Copy and paste it into pi.",
+    );
     expect(current.store.get("k")).toContain("keep");
+  });
+
+  test("Copy puts the text the agent would read on the clipboard and keeps the draft", async () => {
+    current = setup("unreachable");
+    current.select("the cache");
+    click(".pbs-fb-add");
+    const comment = document.querySelector<HTMLTextAreaElement>(".pbs-fb-item textarea");
+    if (!comment) throw new Error("no comment box");
+    comment.value = "why?";
+    comment.dispatchEvent(new Event("input"));
+    click(".pbs-fb-send");
+    await Bun.sleep(10);
+    expect(document.querySelector(".pbs-fb-status")?.textContent).toBe(
+      "Not sent: the page server did not answer (pi may have reloaded or quit) Use Copy and paste it into pi.",
+    );
+    click(".pbs-fb-copy");
+    await Bun.sleep(10);
+    expect(await navigator.clipboard.readText()).toBe(
+      encodeAnswer(feedbackAnswer("The plan", [{ quote: "the cache", comment: "why?" }], "")),
+    );
+    expect(document.querySelector(".pbs-fb-copy")?.textContent).toBe("Copied");
+    expect(document.querySelectorAll(".pbs-fb-item")).toHaveLength(1);
+  });
+
+  test("Copy with nothing drafted says so and copies nothing", async () => {
+    current = setup();
+    await navigator.clipboard.writeText("before");
+    click(".pbs-fb-copy");
+    await Bun.sleep(10);
+    expect(document.querySelector(".pbs-fb-status")?.textContent).toBe("Nothing to send yet.");
+    expect(await navigator.clipboard.readText()).toBe("before");
   });
 });
 
@@ -144,6 +181,35 @@ describe("the host page's answer bridge", () => {
     await Bun.sleep(10);
     expect(current.posted).toEqual([{ url: "/t/answer", body: { answerId: "a1", answer, page: location.pathname } }]);
     expect(current.toFrame).toEqual([{ source: "pbs-host", type: "answer-result", answerId: "a1", accepted: true }]);
+  });
+
+  test("an answer the server cannot take stays on screen as text to copy into pi", async () => {
+    current = setup("unreachable");
+    current.message(current.frameWindow, { source: "pbs-frame", type: "answer", answerId: "a1", answer });
+    await Bun.sleep(10);
+    const reason = "the page server did not answer (pi may have reloaded or quit)";
+    expect(current.toFrame).toEqual([
+      { source: "pbs-host", type: "answer-result", answerId: "a1", accepted: false, reason },
+    ]);
+    const notice = document.querySelector(".pbs-fallback");
+    expect(notice?.querySelector("p")?.textContent).toBe(`Not sent: ${reason}`);
+    const text = encodeAnswer(answer as Answer);
+    expect(notice?.querySelector<HTMLTextAreaElement>("textarea")?.value).toBe(text);
+    click(".pbs-fallback .pbs-copy");
+    await Bun.sleep(10);
+    expect(await navigator.clipboard.readText()).toBe(text);
+    click(".pbs-fallback-close");
+    expect(document.querySelector(".pbs-fallback")).toBeNull();
+  });
+
+  test("a refused frame answer offers its text too", async () => {
+    current = setup(false);
+    current.message(current.frameWindow, { source: "pbs-frame", type: "answer", answerId: "a1", answer });
+    await Bun.sleep(10);
+    expect(document.querySelector(".pbs-fallback p")?.textContent).toBe("Not sent: closed");
+    expect(document.querySelector<HTMLTextAreaElement>(".pbs-fallback textarea")?.value).toBe(
+      encodeAnswer(answer as Answer),
+    );
   });
 
   test("ignores an answer from any other window", async () => {

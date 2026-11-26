@@ -1,4 +1,5 @@
 import { frameAnswer, frameSelection } from "./bridge.ts";
+import { answerText, failureReason, showFailure } from "./fallback.ts";
 import { type FeedbackWords, mountFeedback } from "./feedback.ts";
 import { type AnswerReply, newAnswerId, type PostAnswer } from "./host-config.ts";
 
@@ -50,13 +51,18 @@ export function mountHost(options: HostOptions): { destroy: () => void } {
     }
     const taken = frameAnswer(event, frame.contentWindow);
     if (!taken) return;
-    const reply = (result: AnswerReply): void =>
+    const reply = (result: AnswerReply): void => {
       frame.contentWindow?.postMessage(
         { source: "pbs-host", type: "answer-result", answerId: taken.answerId, ...result },
         "*",
       );
+      // The frame's own note says only why; this page offers the answer's text to paste into pi.
+      if (!result.accepted && result.reason !== "empty") {
+        showFailure(options.words, result.reason ?? "refused", answerText(taken.answer));
+      }
+    };
     post(answerUrl, { ...taken, page: location.pathname }).then(reply, (error: unknown) =>
-      reply({ accepted: false, reason: error instanceof Error ? error.message : String(error) }),
+      reply({ accepted: false, reason: failureReason(error, options.words) }),
     );
   };
   // A frame that loads again has lost its selection.
