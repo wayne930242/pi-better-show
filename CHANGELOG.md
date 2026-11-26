@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.10.2 - 2026-11-26
+
 - An answer that does not reach the agent (for example when pi reloaded and the page server is gone, which the browser reports as `Failed to fetch`) now leaves a notice with the message the agent would have read and a Copy button, so it can be pasted into pi. The feedback panel has its own Copy button beside Send.
 
 ## 0.10.1 - 2026-11-26
