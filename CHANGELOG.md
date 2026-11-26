@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.10.1 - 2026-11-26
+
 - Pick a review item while its picture is enlarged. The same choice appears on the page and in the submitted answer.
 
 ## 0.10.0 - 2026-11-26
