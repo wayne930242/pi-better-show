@@ -203,7 +203,8 @@ No feedback on: B (light header)
 - Set `pickMode: grouped` and give every item a `group`, for example `{name: Flat, group: Card}` and `{name: Spin, group: Working}`. Each group gets its own section, in order of first appearance. Send requires one pick in every group; the message names the group with its pick.
 - Set `pickMode: multi` for checkboxes. Readers can send any number of picks, including none. Either mode works without `pick`; add a string `pick` to label the controls. On its own, `pick: multi` is still a single-choice radio labelled “multi”.
 - A blank comment box means no feedback, so a review with every box blank is still an answer.
-- A picture opens enlarged in a lightbox, with the item's comment box beside it; Previous and Next (or the left and right arrow keys outside the box) step through the review's pictures, wrapping at the ends.
+- Enlarge a picture to comment on it or pick it. The lightbox and the page share the same selection; in a grouped review the lightbox also names the group.
+- Previous and Next wrap through the pictures. Left and Right do the same outside the comment box and pick control; focus the pick control and press Space or Enter to select.
 
 </details>
 
@@ -576,7 +577,7 @@ A host gives an element the block's parsed `data` and listens for `pbs-answer` (
 | `pbs-cards` | `cards` | `CardsData` | | `grid` `card` `title` `icon` `body` |
 | `pbs-options` | `options` | `OptionsData` | `pick` | `grid` `option` `title` `badge` `body` `pros` `cons` `actions` `pick` `status` |
 | `pbs-form` | `form` | `FormData` | `form` | `form` `title` `question` `label` `hint` `choices` `choice` `badge` `other` `textarea` `error` `actions` `submit` `status` `sent` |
-| `pbs-review` | `review` | `ReviewData` | `review` | `review` `title` `group` `items` `item` `item-title` `pick` `media` `image` `enlarge` `frame` `unavailable` `body` `comment` `actions` `submit` `status` `lightbox` `lightbox-image` `lightbox-title` `position` `nav` `previous` `next` `lightbox-comment` `close` `sent` |
+| `pbs-review` | `review` | `ReviewData` | `review` | `review` `title` `group` `items` `item` `item-title` `pick` `media` `image` `enlarge` `frame` `unavailable` `body` `comment` `actions` `submit` `status` `lightbox` `lightbox-image` `lightbox-title` `position` `nav` `previous` `next` `lightbox-pick` `lightbox-comment` `close` `sent` |
 | `pbs-mindmap` | `mindmap` | `MindmapData` | | `mindmap` `tree` `item` `node` `toggle` `label` `group` |
 | `pbs-suggest` | `suggest` | `SuggestData` | `suggest` | `suggest` `chips` `chip` `status` |
 | `pbs-checklist` | `checklist` | `ChecklistData` | `checklist` | `checklist` `title` `items` `item` `progress` `actions` `submit` `status` `sent` |

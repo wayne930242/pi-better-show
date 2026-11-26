@@ -18,8 +18,8 @@ const reviewCss = `${controlCss}
 @container (max-width: 40rem) { .review-grid[data-columns] { grid-template-columns: minmax(0, 1fr); } }
 .item { display: flex; flex-direction: column; gap: 0.6rem; }
 .item .head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 0.2rem 0.75rem; }
-.item .pick { display: inline-flex; gap: 0.4rem; align-items: center; cursor: pointer; font-size: 0.92em; white-space: nowrap; }
-.item .pick input { margin: 0; }
+.pick { display: inline-flex; gap: 0.4rem; align-items: center; cursor: pointer; font-size: 0.92em; white-space: nowrap; }
+.pick input { margin: 0; }
 .item .media { min-width: 0; display: flex; flex-direction: column; gap: 0.4rem; align-items: flex-start; }
 .item .media img { display: block; max-width: 100%; height: auto; border-radius: 4px; }
 .item .media iframe { width: 100%; border: 1px solid var(--_line); border-radius: 4px; background: #fff; }
@@ -59,6 +59,7 @@ export class PbsReview extends PbsElement<ReviewData> {
   #shown: Shown[] = [];
   /** Each item's comment box of the current view, kept in step with the lightbox's box. */
   #boxes: HTMLTextAreaElement[] = [];
+  #picks = new Map<number, { control: HTMLInputElement; label: string }>();
 
   protected override reset(): void {
     this.#picked.clear();
@@ -73,6 +74,7 @@ export class PbsReview extends PbsElement<ReviewData> {
     const comments = this.#comments;
     this.#shown = [];
     this.#boxes = [];
+    this.#picks.clear();
     const pickLabel =
       typeof data.pick === "string" ? data.pick : data.pick || data.pickMode ? this.t("pick") : undefined;
     const sections = reviewSections(data);
@@ -92,6 +94,8 @@ export class PbsReview extends PbsElement<ReviewData> {
                 required: group !== undefined,
                 "aria-label": `${pickLabel}: ${reviewItemName(item)}`,
               });
+        if (control && pickLabel !== undefined)
+          this.#picks.set(index, { control, label: group === undefined ? pickLabel : `${pickLabel}: ${group}` });
         if (group !== undefined && control && !firstChoice.has(group)) firstChoice.set(group, control);
         control?.addEventListener("change", () => {
           if (data.pickMode !== "multi") for (const i of indices) this.#picked.delete(i);
@@ -215,7 +219,7 @@ export class PbsReview extends PbsElement<ReviewData> {
   }
 
   /**
-   * One modal for every picture of the review: Previous and Next (or the arrow keys outside the comment box) step
+   * One modal for every picture of the review: Previous and Next (or the arrow keys outside the editing controls) step
    * through them in item order, wrapping at the ends, and the box beside the picture is that item's comment box.
    */
   private lightbox(first: Shown, comments: string[]): void {
@@ -230,6 +234,22 @@ export class PbsReview extends PbsElement<ReviewData> {
     );
     const next = h("button", { type: "button", part: "next", class: "btn quiet" }, `${this.t("nextImage")} ›`);
     const note = h("textarea", { part: "lightbox-comment", placeholder: this.t("feedbackNote") });
+    const pagePick = () => this.#picks.get(current.index);
+    const firstPick = pagePick();
+    const pick = firstPick && h("input", { type: firstPick.control.type });
+    const caption = document.createTextNode("");
+    const syncPick = () => {
+      const page = pagePick();
+      if (pick && page) {
+        pick.checked = page.control.checked;
+        caption.data = page.label;
+        pick.setAttribute("aria-label", `${page.label}: ${current.name}`);
+      }
+    };
+    pick?.addEventListener("change", () => {
+      const page = pagePick();
+      if (page && page.control.checked !== pick.checked) page.control.click();
+    });
     const close = h("button", { type: "button", part: "close", class: "btn" }, this.t("close"));
     const dialog = h(
       "dialog",
@@ -243,6 +263,7 @@ export class PbsReview extends PbsElement<ReviewData> {
           { class: "side" },
           h("div", { class: "head" }, heading, position),
           h("div", { part: "nav", class: "nav" }, previous, next),
+          pick && h("label", { part: "lightbox-pick", class: "pick" }, pick, caption),
           note,
           close,
         ),
@@ -250,6 +271,7 @@ export class PbsReview extends PbsElement<ReviewData> {
     );
     const show = (entry: Shown) => {
       current = entry;
+      syncPick();
       const shown = this.#shown;
       picture.src = entry.url;
       picture.alt = entry.name;
@@ -277,6 +299,13 @@ export class PbsReview extends PbsElement<ReviewData> {
     close.addEventListener("click", end);
     dialog.addEventListener("keydown", (event) => {
       if (event.target === note || event.altKey || event.ctrlKey || event.metaKey) return;
+      if (pick && event.target === pick) {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          if (!event.repeat) pick.click();
+        }
+        return;
+      }
       if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
       event.preventDefault();
       step(event.key === "ArrowLeft" ? -1 : 1);
@@ -284,12 +313,15 @@ export class PbsReview extends PbsElement<ReviewData> {
     dialog.addEventListener("click", (event) => {
       if (event.target === dialog) end();
     });
+    const review = first.opener.closest(".review");
+    if (pick) review?.addEventListener("change", syncPick);
     dialog.addEventListener("close", () => {
+      review?.removeEventListener("change", syncPick);
       dialog.remove();
       (current.opener.isConnected ? current.opener : first.opener).focus();
     });
     show(first);
-    (first.opener.closest(".review") ?? first.opener.parentNode)?.append(dialog);
+    (review ?? first.opener.parentNode)?.append(dialog);
     dialog.showModal();
     (next.hidden ? note : next).focus();
   }

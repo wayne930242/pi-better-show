@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Pick a review item while its picture is enlarged. The same choice appears on the page and in the submitted answer.
+
 ## 0.10.0 - 2026-11-26
 
 Minor bump: a `review` has a new `pickMode` and a `group` per item, and its answer may carry one `picked:<group>` field per group or several `picked` fields. Hosts that validate or show review answers take the new fields when their pin moves.
