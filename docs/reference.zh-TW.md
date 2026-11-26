@@ -1,4 +1,4 @@
-# pi-better-show 參考 <!-- source: docs/reference.md @ 0ee401b -->
+# pi-better-show 參考 <!-- source: docs/reference.md @ 8118b43 -->
 
 [README](../README.zh-TW.md) 背後的完整契約：每一種區塊、core、server、元素與 React 的 API，以及 `show_doc` extension 的細節。請找到需要的那一節，其餘可以略過。
 
@@ -203,7 +203,8 @@ No feedback on: B (light header)
 - 設 `pickMode: grouped`，並在每個項目填上 `group`，例如 `{name: Flat, group: Card}` 和 `{name: Spin, group: Working}`。各組依首次出現的順序分區顯示；每組都選好一項才能送出，訊息裡會列出組名和所選項目。
 - 設 `pickMode: multi` 可改用核取方塊，勾選數目不限，也可以全部不勾就送出。兩種模式都不必填 `pick`；想自訂按鈕文字，再把標籤填進 `pick`。單獨寫 `pick: multi` 仍是單選，標籤為「multi」。
 - 留言欄留白代表沒有意見，所以每個欄位都留白的 review 仍然是一份答案。
-- 圖片可以在燈箱中放大，旁邊就是該項目的回饋框；「上一張」「下一張」（或在回饋框外按左右方向鍵）會依序切換這份回饋的圖片，到頭會繞回。
+- 放大圖片後，可以直接留言或選取該項目。燈箱和頁面的選取狀態會同步；分組單選時，燈箱也會顯示組名。
+- 「上一張」「下一張」可循環切換圖片。焦點不在回饋框或選取鈕上時，也可以按左右方向鍵切換；焦點在選取鈕上時，按空白鍵或 Enter 即可選取。
 
 </details>
 
@@ -576,7 +577,7 @@ el.answered = event.detail.fields;           // once delivered: locks the elemen
 | `pbs-cards` | `cards` | `CardsData` | | `grid` `card` `title` `icon` `body` |
 | `pbs-options` | `options` | `OptionsData` | `pick` | `grid` `option` `title` `badge` `body` `pros` `cons` `actions` `pick` `status` |
 | `pbs-form` | `form` | `FormData` | `form` | `form` `title` `question` `label` `hint` `choices` `choice` `badge` `other` `textarea` `error` `actions` `submit` `status` `sent` |
-| `pbs-review` | `review` | `ReviewData` | `review` | `review` `title` `group` `items` `item` `item-title` `pick` `media` `image` `enlarge` `frame` `unavailable` `body` `comment` `actions` `submit` `status` `lightbox` `lightbox-image` `lightbox-title` `position` `nav` `previous` `next` `lightbox-comment` `close` `sent` |
+| `pbs-review` | `review` | `ReviewData` | `review` | `review` `title` `group` `items` `item` `item-title` `pick` `media` `image` `enlarge` `frame` `unavailable` `body` `comment` `actions` `submit` `status` `lightbox` `lightbox-image` `lightbox-title` `position` `nav` `previous` `next` `lightbox-pick` `lightbox-comment` `close` `sent` |
 | `pbs-mindmap` | `mindmap` | `MindmapData` | | `mindmap` `tree` `item` `node` `toggle` `label` `group` |
 | `pbs-suggest` | `suggest` | `SuggestData` | `suggest` | `suggest` `chips` `chip` `status` |
 | `pbs-checklist` | `checklist` | `ChecklistData` | `checklist` | `checklist` `title` `items` `item` `progress` `actions` `submit` `status` `sent` |
