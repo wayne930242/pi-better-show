@@ -1,5 +1,16 @@
 import { inlinePlain } from "./inline.ts";
-import { entryOf, itemsOf, list, mappingOf, oneOf, positiveNumber, recommended, record, text } from "./normalize.ts";
+import {
+  entryOf,
+  FieldError,
+  itemsOf,
+  list,
+  mappingOf,
+  oneOf,
+  positiveNumber,
+  recommended,
+  record,
+  text,
+} from "./normalize.ts";
 import type {
   CardsData,
   ChoiceData,
@@ -11,7 +22,7 @@ import type {
   ReviewItemData,
 } from "./types.ts";
 
-/** The show-doc blocks that predate pi-better-show; their YAML schemas are kept exactly (pi-herdr-doc-review). */
+/** The show-doc block converters, including the original pi-herdr-doc-review syntax. */
 
 export function cards(data: unknown): CardsData {
   return {
@@ -120,6 +131,31 @@ export function reviewNames(names: (string | undefined)[]): string[] {
 export const reviewItemName = (item: { name: string; label?: string }): string =>
   item.label ? `${item.name} (${item.label})` : item.name;
 
+/** Sections in first appearance order. Keep source indices for numbering, comments and pictures. */
+export function reviewSections(data: ReviewData): Map<string | undefined, number[]> {
+  const sections = new Map<string | undefined, number[]>();
+  data.items.forEach((item, index) => {
+    const key = data.pickMode === "grouped" ? item.group : undefined;
+    const indices = sections.get(key);
+    if (indices) indices.push(index);
+    else sections.set(key, [index]);
+  });
+  return sections;
+}
+
+const GROUP_PREFIX = "picked:";
+export const pickField = (group?: string): string => (group === undefined ? "picked" : GROUP_PREFIX + group);
+export const pickGroup = (field: string): string | undefined =>
+  field.startsWith(GROUP_PREFIX) ? field.slice(GROUP_PREFIX.length) : undefined;
+
+/** Both the sent view and the message read these without access to the source block. */
+export function reviewPicks(fields: readonly (readonly [string, string])[]) {
+  return fields.flatMap(([field, value]) => {
+    const group = pickGroup(field);
+    return (field === "picked" || group !== undefined) && value ? [{ group, value }] : [];
+  });
+}
+
 /** The name an option answers with: its plain title, else its 1-based number. */
 export const optionName = (option: { title?: string }, index: number): string =>
   option.title ? inlinePlain(option.title) : String(index + 1);
@@ -127,9 +163,23 @@ export const optionName = (option: { title?: string }, index: number): string =>
 export function review(data: unknown): ReviewData {
   const raw = mappingOf(data);
   const entries = itemsOf(data, "items").map((entry) => entryOf(entry, "image", "item"));
+  const pickMode = raw.pickMode;
+  if (pickMode !== undefined && pickMode !== "grouped" && pickMode !== "multi")
+    throw new FieldError(["pickMode"], "pickMode must be grouped or multi");
+  const groupOf = (entry: Record<string, unknown>, index: number): string | undefined => {
+    const path = Array.isArray(data) ? [index, "group"] : ["items", index, "group"];
+    if (pickMode === "grouped") {
+      if (typeof entry.group !== "string" || !entry.group.trim())
+        throw new FieldError(path, `item ${index + 1} needs a non-empty group name`);
+      return entry.group.trim();
+    }
+    if ("group" in entry) throw new FieldError(path, "group requires pickMode: grouped");
+    return undefined;
+  };
   const names = reviewNames(entries.map((entry) => text(entry.name, "name")));
   const items: ReviewItemData[] = entries.map((entry, index) => ({
     name: names[index] as string,
+    group: groupOf(entry, index),
     label: text(entry.label, "label"),
     image: text(entry.image, "image"),
     page: text(entry.page, "page"),
@@ -140,6 +190,7 @@ export function review(data: unknown): ReviewData {
     title: text(raw.title, "title"),
     submit: text(raw.submit, "submit"),
     pick: recommended(raw.pick),
+    pickMode,
     columns: positiveNumber(raw.columns, "columns"),
     items,
   };

@@ -1,4 +1,4 @@
-import { NOTE_FIELD, optionName, reviewItemName } from "./blocks.ts";
+import { NOTE_FIELD, optionName, pickGroup, reviewItemName, reviewSections } from "./blocks.ts";
 import type { Answer, AnswerKind, BlockSegment, FormData, QuestionData } from "./types.ts";
 
 /** `reason` says what is wrong, for a host's refusal. */
@@ -61,19 +61,39 @@ function formProblem(data: FormData, fields: Fields): string | undefined {
 function reviewProblem(block: Extract<BlockSegment, { kind: "review" }>, fields: Fields): string | undefined {
   const names = block.data.items.map(reviewItemName);
   const known = new Set(names);
+  const sections = reviewSections(block.data);
+  const commented = new Set(valuesOf(fields, "item"));
+  const silentList = names.filter((name) => !commented.has(name)).join(", ");
+  const groups = new Set<string>();
+  const picks = new Set<string>();
   for (const [name, value] of fields) {
     if (name === "title" || name === "comment") continue;
-    if (name === "picked") {
-      if (block.data.pick === undefined) return "this review has no pick";
+    const group = pickGroup(name);
+    if (group !== undefined) {
+      const section = sections.get(group);
+      if (!section) return `unknown pick group ${quoted(group)}`;
+      if (groups.has(group)) return `only one item can be picked in ${quoted(group)}`;
+      if (!section.some((i) => names[i] === value)) return `unknown item ${quoted(value)} in ${quoted(group)}`;
+      groups.add(group);
+    } else if (name === "picked") {
+      if (block.data.pickMode === "grouped") return "a pick must name its group";
+      if (!block.data.pickMode && block.data.pick === undefined) return "this review has no pick";
       if (!known.has(value)) return `unknown item ${quoted(value)}`;
+      if (block.data.pickMode !== "multi" && picks.size) return "only one item can be picked";
+      if (picks.has(value)) return `item ${quoted(value)} is picked twice`;
+      picks.add(value);
     } else if (name === "item") {
       if (!known.has(value)) return `unknown item ${quoted(value)}`;
     } else if (name === "silent") {
+      // The element joins these names for display. A label can itself contain the separator.
+      if (value === silentList && value !== "") continue;
       const unknown = known.has(value) ? undefined : value.split(", ").find((part) => !known.has(part));
       if (unknown !== undefined) return `unknown item ${quoted(unknown)}`;
     } else return `unknown field ${quoted(name)}`;
   }
-  if (valuesOf(fields, "picked").length > 1) return "only one item can be picked";
+  if (block.data.pickMode === "grouped")
+    for (const group of sections.keys())
+      if (group !== undefined && !groups.has(group)) return `missing pick for ${quoted(group)}`;
   if (valuesOf(fields, "title").length > 1) return "several titles";
   if (valuesOf(fields, "comment").length > valuesOf(fields, "item").length) return "a comment without an item";
   const items = valuesOf(fields, "item");
@@ -129,7 +149,7 @@ function reservedName(block: BlockSegment): string | undefined {
 
 /**
  * Whether an untrusted `answer` fits `block`: its kind is the block's, every field names a question, choice, or item
- * of the block, several values appear only for a `multi` form question, required questions are answered, one optional
+ * of the block, picks fit the review mode, required questions are answered, one optional
  * `pi-note` field (the "Other comments" box) is accepted on every kind, and there are at most 64 fields of 1,024
  * characters each.
  */

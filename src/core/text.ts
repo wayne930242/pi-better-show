@@ -1,4 +1,4 @@
-import { reviewItemName } from "./blocks.ts";
+import { reviewItemName, reviewSections } from "./blocks.ts";
 import { inlinePlain } from "./inline.ts";
 import type {
   AlertData,
@@ -46,6 +46,8 @@ interface Replies {
   /** Followed by the pick sentence, when the review has one. */
   review: string;
   pick: (label: string | undefined) => string;
+  grouped: string;
+  multi: string;
   /** Closes a review reply, which has no fixed sentence of its own. */
   welcome: string;
   suggest: string;
@@ -58,6 +60,8 @@ const REPLIES: Record<TextLang, Replies> = {
     form: (example) => `Reply in text, one line per question, like ${example}. Other comments are welcome.`,
     review: "Reply with a comment for each item, naming the item.",
     pick: (label) => ` Say which one you pick${label === undefined ? "" : ` (${label})`}.`,
+    grouped: " Pick one item per group.",
+    multi: " Pick any number of items.",
     welcome: " Other comments are welcome.",
     suggest: "You can reply: ",
     checklist: "Reply with the items you tick or leave unticked, naming each. Other comments are welcome.",
@@ -67,6 +71,8 @@ const REPLIES: Record<TextLang, Replies> = {
     form: (example) => `請用文字回覆，每題一行，例如 ${example}。也歡迎補充其他意見。`,
     review: "請逐項回覆意見，並寫明是哪一項。",
     pick: (label) => `請說明你選哪一項${label === undefined ? "" : `（${label}）`}。`,
+    grouped: "請每組各選一項。",
+    multi: "可複選，也可不選。",
     welcome: "也歡迎補充其他意見。",
     suggest: "可以回覆：",
     checklist: "請回覆你勾選或不勾選的項目，逐項寫明。也歡迎補充其他意見。",
@@ -149,12 +155,23 @@ function form(dialect: Dialect, data: FormData): string {
 }
 
 function review(dialect: Dialect, data: ReviewData): string {
-  const lines = data.items.flatMap((item, index) => [
-    `${index + 1}. ${joined(dialect, bold(dialect, field(dialect, reviewItemName(item))), item.body && oneLine(field(dialect, item.body)))}`,
-    ...(item.image ? [`   image: ${item.image}`] : []),
-    ...(item.page ? [`   page: ${item.page}`] : []),
-  ]);
-  const pick = data.pick === undefined ? "" : dialect.say.pick(data.pick === true ? undefined : data.pick);
+  const lines: string[] = [];
+  for (const [group, indices] of reviewSections(data)) {
+    if (group !== undefined) lines.push(bold(dialect, group));
+    for (const index of indices) {
+      const item = data.items[index] as ReviewData["items"][number];
+      lines.push(
+        `${index + 1}. ${joined(dialect, bold(dialect, field(dialect, reviewItemName(item))), item.body && oneLine(field(dialect, item.body)))}`,
+      );
+      if (item.image) lines.push(`   image: ${item.image}`);
+      if (item.page) lines.push(`   page: ${item.page}`);
+    }
+  }
+  const pick = data.pickMode
+    ? dialect.say[data.pickMode]
+    : data.pick === undefined
+      ? ""
+      : dialect.say.pick(data.pick === true ? undefined : data.pick);
   const title = data.title ? [bold(dialect, field(dialect, data.title))] : [];
   return [...title, ...lines, "", `${dialect.say.review}${pick}${dialect.say.welcome}`].join("\n");
 }

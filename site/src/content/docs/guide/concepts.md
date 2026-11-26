@@ -71,7 +71,7 @@ An answer has a kind and a list of `[name, value]` fields, and each kind reads a
 | --- | --- | --- |
 | `pick` | `options` | `User picked "SQLite".` |
 | `form` | `form`, and `<form>` on an HTML page | `User submitted a form ...` then `- name: value` lines |
-| `review` | `review` | `User reviewed "title":` with the pick and each comment |
+| `review` | `review` | `User reviewed "title":` with each pick and comment |
 | `suggest` | `suggest` | the chip's text itself |
 | `checklist` | `checklist` | `User updated the checklist ...` then `☑` and `☐` lines |
 | `feedback` | the feedback panel | `User feedback on the page ...` with quotes and comments |
@@ -80,6 +80,7 @@ An answer has a kind and a list of `[name, value]` fields, and each kind reads a
 <summary>Details</summary>
 
 - A pick or a chip sends at once; a form, a checklist, and a review stay editable until you press Send.
+- To choose both a card style and a motion on one page, write a `review` with `pickMode: grouped`. Set each item's `group` to Card or Motion; the page asks for one pick in each section. For a shortlist with no limit, use `pickMode: multi` instead and leave off `group`.
 - Every submittable block has an "Other comments" box; its text arrives as a last line, `Other comments: ...`.
 - A message from a page the agent wrote itself starts with `Agent page <name> sent:`, so the agent can tell it from a click on a block.
 

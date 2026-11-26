@@ -1,4 +1,4 @@
-import { NOTE_FIELD } from "./blocks.ts";
+import { NOTE_FIELD, reviewPicks } from "./blocks.ts";
 import type { Answer } from "./types.ts";
 
 type Fields = readonly (readonly [string, string])[];
@@ -37,11 +37,12 @@ function reviewText(fields: Fields, title: string | undefined): string {
   const lines = all(fields, "item").map(
     (item, index) => `- ${item}: ${(comments[index] ?? "").replace(/\n/g, "\n  ")}`,
   );
-  const picked = first(fields, "picked");
   const silent = first(fields, "silent");
   return [
     `User reviewed "${first(fields, "title") ?? title ?? ""}":`,
-    ...(picked ? [`Picked: ${picked}`] : []),
+    ...reviewPicks(fields).map(({ group, value }) =>
+      group === undefined ? `Picked: ${value}` : `Picked (${group}): ${value}`,
+    ),
     ...lines,
     ...(silent ? [`No feedback on: ${silent}`] : []),
   ].join("\n");

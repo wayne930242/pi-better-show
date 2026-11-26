@@ -85,6 +85,7 @@ export interface ReviewItemData {
   /** The author's name, else the first letter no item claims (A, B, C, ...); repeated names get a number. */
   name: string;
   label?: string;
+  group?: string;
   image?: string;
   page?: string;
   height?: number;
@@ -93,8 +94,10 @@ export interface ReviewItemData {
 export interface ReviewData {
   title?: string;
   submit?: string;
-  /** `true` or the pick's label; absent when the user does not pick a favourite. */
+  /** Enables a single favourite, or labels the controls when pickMode is set. */
   pick?: Recommended;
+  /** Grouped requires one pick per group; multi allows any number, including zero. */
+  pickMode?: "grouped" | "multi";
   columns?: number;
   items: ReviewItemData[];
 }

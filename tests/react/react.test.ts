@@ -5,8 +5,8 @@ import { renderToString } from "react-dom/server";
 import { parse } from "../../src/core/index.ts";
 import type { Answer, BlockSegment, OptionsData } from "../../src/core/types.ts";
 import type { PbsElement } from "../../src/elements/index.ts";
-import { PbsBlock, PbsCallout, PbsForm, PbsOptions, PbsSuggest } from "../../src/react/index.ts";
-import { all, click, one, PROBE_TEXT, root as shadow, type } from "../elements/helpers.ts";
+import { PbsBlock, PbsCallout, PbsForm, PbsOptions, PbsReview, PbsSuggest } from "../../src/react/index.ts";
+import { all, check, click, one, PROBE_TEXT, root as shadow, type } from "../elements/helpers.ts";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -62,6 +62,60 @@ describe("react wrappers", () => {
     );
     await act(async () => click(all(first("pbs-options"), '[part="pick"]')[1] as HTMLElement));
     expect(got).toEqual([{ kind: "pick", fields: [["picked", "B"]], ref: { doc: "x.md", block: 2 } }]);
+  });
+
+  test("one review sends every group's final pick and locks on those values", async () => {
+    const got: Answer[] = [];
+    const data = {
+      pickMode: "grouped" as const,
+      items: [
+        { name: "A", group: "Card" },
+        { name: "B", group: "State" },
+        { name: "C", group: "Card" },
+      ],
+    };
+    const view = (answered?: Answer["fields"]) =>
+      createElement(PbsReview, { data, answered, onAnswer: (a) => void got.push(a) });
+    await render(view());
+    const el = first("pbs-review");
+    expect(all(el, "legend").map((node) => node.textContent)).toEqual(["Card", "State"]);
+    const [a, c, b] = all<HTMLInputElement>(el, 'input[type="radio"]');
+    if (!a || !b || !c) throw new Error("missing group radio");
+    check(a);
+    check(c);
+    click(one(el, '[part="submit"]'));
+    expect(got).toHaveLength(0);
+    expect(one(el, '[part="status"]').textContent).toContain("State");
+    check(b);
+    click(one(el, '[part="submit"]'));
+    expect(got[0]?.fields).toContainEqual(["picked:Card", "C"]);
+    expect(got[0]?.fields).toContainEqual(["picked:State", "B"]);
+    await act(async () => react.render(view(got[0]?.fields)));
+    expect(all(el, "dt").map((n) => n.textContent)).toEqual(["Card", "State", "No feedback"]);
+    expect(all(el, "dd").map((n) => n.textContent)).toEqual(["C", "B", "A, B, C"]);
+  });
+
+  test("free picks can be ticked and unticked without sending until submit", async () => {
+    const got: Answer[] = [];
+    await render(
+      createElement(PbsReview, {
+        data: { pickMode: "multi", items: [{ name: "A" }, { name: "B" }, { name: "C" }] },
+        onAnswer: (a) => void got.push(a),
+      }),
+    );
+    const el = first("pbs-review");
+    const [a, b, c] = all<HTMLInputElement>(el, 'input[type="checkbox"]');
+    if (!a || !b || !c) throw new Error("missing checkbox");
+    check(c);
+    check(a);
+    check(b);
+    check(b, false);
+    expect(got).toHaveLength(0);
+    click(one(el, '[part="submit"]'));
+    expect(got[0]?.fields.filter(([k]) => k === "picked")).toEqual([
+      ["picked", "A"],
+      ["picked", "C"],
+    ]);
   });
 
   test("returning false from onAnswer refuses the answer and the element stays open", async () => {

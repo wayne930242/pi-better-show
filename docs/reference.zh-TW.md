@@ -38,7 +38,7 @@ pi-better-show/extension  the pi extension: `show_doc`, a loopback page server, 
 | `cards` | `{title, tone, body}` 的 YAML 清單 | |
 | `options` | `{title, recommended, body, pros, cons}` 的 YAML 清單 | `pick` |
 | `form` | YAML `{title, submit, questions: [{name, label, type, hint, required, other, choices}]}` | `form` |
-| `review` | YAML `{title, submit, pick, columns, items: [{name, label, image, page, height, body}]}` | `review` |
+| `review` | YAML `{title, submit, pick, pickMode, columns, items: [{name, label, group, image, page, height, body}]}` | `review` |
 | `mindmap` | 縮排的 Markdown 清單；第一項是根 | |
 | `suggest` | 字串或 `{label, text}` 的 YAML 清單 | `suggest` |
 | `checklist` | YAML `{title, submit, items: [string \| {name, label, checked, note}]}` | `checklist` |
@@ -170,7 +170,7 @@ User submitted a form in the HTML review pane:
 
 ### Review
 
-要比較的設計、截圖或原型：使用者對每一項留言，設了 `pick` 時還能挑出最喜歡的。
+把設計、截圖或原型放在同一頁比較。讀者可以逐項留言、選一個最喜歡的、每組各選一項，或勾選多個想留下的項目。
 
 ~~~markdown
 ```review
@@ -200,6 +200,8 @@ No feedback on: B (light header)
 - `image` 是相對於 Markdown 檔的路徑（一個項目也可以只寫這個路徑）；`page` 是 HTML 原型的路徑，在高 `height` 像素的沙箱 frame 中顯示。兩者都不能離開頁面所在的目錄。
 - 項目依序叫 A、B、C...，除非 `name` 另有指定；答案寫成 `name (label)`。
 - `pick: true` 讓每個項目有一個單選鈕（填字串則設定它的標籤）；`columns` 是 1 到 6。
+- 設 `pickMode: grouped`，並在每個項目填上 `group`，例如 `{name: Flat, group: Card}` 和 `{name: Spin, group: Working}`。各組依首次出現的順序分區顯示；每組都選好一項才能送出，訊息裡會列出組名和所選項目。
+- 設 `pickMode: multi` 可改用核取方塊，勾選數目不限，也可以全部不勾就送出。兩種模式都不必填 `pick`；想自訂按鈕文字，再把標籤填進 `pick`。單獨寫 `pick: multi` 仍是單選，標籤為「multi」。
 - 留言欄留白代表沒有意見，所以每個欄位都留白的 review 仍然是一份答案。
 - 圖片可以在燈箱中放大，旁邊就是該項目的回饋框；「上一張」「下一張」（或在回饋框外按左右方向鍵）會依序切換這份回饋的圖片，到頭會繞回。
 
@@ -511,7 +513,7 @@ encodeAnswer(answer: Answer): string
 | 種類 | `fields` | 文字 |
 |---|---|---|
 | `form` | 每個問題一個 `[name, value]` | `User submitted a form ...` 後面接 `- name: value` 各行 |
-| `review` | `title`、`picked`、成對的 `item`/`comment`、`silent` | `User reviewed "title":` ... |
+| `review` | `title`、`picked`（複選時可重複）或 `picked:<group>`、成對的 `item`/`comment`、`silent` | `User reviewed "title":` ... |
 | `feedback` | `page`、成對的 `quote`/`comment`、`overall` | `User feedback on the page "page":` ...（quote 是選取的段落，或圖上的元素，見 Markdown 頁面） |
 | `pick` | `[["picked", option]]` | `User picked "option" for "title".` |
 | `suggest` | `[["text", text]]` | 文字本身 |
@@ -528,7 +530,7 @@ validateAnswer(block: BlockSegment, answer: Answer): { ok: true } | { ok: false;
 <details>
 <summary>接受什麼</summary>
 
-`validateAnswer` 是給從不受信任的用戶端收到 `Answer` 的宿主用的。答案的 `kind` 符合區塊（`options` 收 `pick`，其他收自己的種類）、每個欄位都指名該區塊的問題、選項或項目，且最多 64 個欄位、每個最多 1,024 個字元時，它才接受。同一個名稱的多個值，只有 `multi` 的表單問題才接受（以重複的欄位，或表單元素送出的合併值）；`single` 或 `text` 問題、挑選與建議都只收一個。必填的問題必須有答案（空值或 `(no answer)` 不算答案）。沒有 `other` 欄位的 `form` 問題，值必須是它的選項之一。`checklist` 的欄位是項目名稱各出現一次、加上 `checked` 或 `unchecked`；`review` 只有在區塊有 `pick` 時才能帶 `picked`。被拒絕時 `reason` 會說明原因，給宿主的錯誤回覆用。不接受答案的區塊（顯示用的種類）一律拒絕。
+`validateAnswer` 是給從不受信任的用戶端收到 `Answer` 的宿主用的。答案的 `kind` 符合區塊（`options` 收 `pick`，其他收自己的種類）、每個欄位都指名該區塊的問題、選項或項目，且最多 64 個欄位、每個最多 1,024 個字元時，它才接受。在表單中，同一個名稱的多個值，只有 `multi` 問題才接受（以重複的欄位，或表單元素送出的合併值）；`single` 或 `text` 問題、挑選與建議都只收一個。必填的問題必須有答案（空值或 `(no answer)` 不算答案）。沒有 `other` 欄位的 `form` 問題，值必須是它的選項之一。`checklist` 的欄位是項目名稱各出現一次、加上 `checked` 或 `unchecked`；`review` 只設 `pick` 時，最多接受一個 `picked` 欄位。`multi` 模式每個選項各用一個 `picked`，不能重複選同一項；`grouped` 模式每組必須恰有一個 `picked:<group>`，且選項須屬於該組。被拒絕時 `reason` 會說明原因，給宿主的錯誤回覆用。不接受答案的區塊（顯示用的種類）一律拒絕。
 
 </details>
 
@@ -574,7 +576,7 @@ el.answered = event.detail.fields;           // once delivered: locks the elemen
 | `pbs-cards` | `cards` | `CardsData` | | `grid` `card` `title` `icon` `body` |
 | `pbs-options` | `options` | `OptionsData` | `pick` | `grid` `option` `title` `badge` `body` `pros` `cons` `actions` `pick` `status` |
 | `pbs-form` | `form` | `FormData` | `form` | `form` `title` `question` `label` `hint` `choices` `choice` `badge` `other` `textarea` `error` `actions` `submit` `status` `sent` |
-| `pbs-review` | `review` | `ReviewData` | `review` | `review` `title` `items` `item` `item-title` `pick` `media` `image` `enlarge` `frame` `unavailable` `body` `comment` `actions` `submit` `status` `lightbox` `lightbox-image` `lightbox-title` `position` `nav` `previous` `next` `lightbox-comment` `close` `sent` |
+| `pbs-review` | `review` | `ReviewData` | `review` | `review` `title` `group` `items` `item` `item-title` `pick` `media` `image` `enlarge` `frame` `unavailable` `body` `comment` `actions` `submit` `status` `lightbox` `lightbox-image` `lightbox-title` `position` `nav` `previous` `next` `lightbox-comment` `close` `sent` |
 | `pbs-mindmap` | `mindmap` | `MindmapData` | | `mindmap` `tree` `item` `node` `toggle` `label` `group` |
 | `pbs-suggest` | `suggest` | `SuggestData` | `suggest` | `suggest` `chips` `chip` `status` |
 | `pbs-checklist` | `checklist` | `ChecklistData` | `checklist` | `checklist` `title` `items` `item` `progress` `actions` `submit` `status` `sent` |

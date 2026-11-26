@@ -71,7 +71,7 @@ flowchart TD
 | --- | --- | --- |
 | `pick` | `options` | `User picked "SQLite".` |
 | `form` | `form`，以及 HTML 頁面上的 `<form>` | `User submitted a form ...` 後面接 `- name: value` 各行 |
-| `review` | `review` | `User reviewed "title":`，附挑選與每則留言 |
+| `review` | `review` | `User reviewed "title":`，列出所有選取項目和留言 |
 | `suggest` | `suggest` | chip 的文字本身 |
 | `checklist` | `checklist` | `User updated the checklist ...` 後面接 `☑` 與 `☐` 各行 |
 | `feedback` | 意見面板 | `User feedback on the page ...`，附 quote 與留言 |
@@ -80,6 +80,7 @@ flowchart TD
 <summary>細節</summary>
 
 - 挑選或 chip 會立刻送出；表單、checklist 與 review 在你按 Send 之前都可以再編輯。
+- 想在同一頁選卡片樣式和動態效果，可在 `review` 設 `pickMode: grouped`，把每個項目的 `group` 填成「卡片」或「動態效果」。頁面會分成兩區，各選一項。若想不限數量地挑出候選設計，改用 `pickMode: multi`，不用填 `group`。
 - 每個可送出的區塊都有「Other comments」欄位；它的文字會以最後一行 `Other comments: ...` 送達。
 - agent 自己寫的頁面送來的訊息以 `Agent page <name> sent:` 開頭，所以 agent 分得出它與對區塊的點擊。
 

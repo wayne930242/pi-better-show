@@ -171,12 +171,17 @@ describe("checkBlocks: unknown keys", () => {
       'form question "q" choice 1',
       "value, label, note, recommended",
     ],
-    ["review", "title: R\nitem: []\nitems:\n  - image: a.png", "review", "title, submit, pick, columns, items"],
+    [
+      "review",
+      "title: R\nitem: []\nitems:\n  - image: a.png",
+      "review",
+      "title, submit, pick, pickMode, columns, items",
+    ],
     [
       "review",
       "items:\n  - {name: B, image: a.png, caption: x}",
       'review item "B"',
-      "name, label, image, page, height, body",
+      "name, label, group, image, page, height, body",
     ],
     ["suggest", "- {label: a, txt: b}", "suggest suggestion 1", "label, text"],
     ["checklist", "titel: T\nitems: [a]", "checklist", "title, submit, items"],
@@ -265,7 +270,7 @@ describe("checkBlocks: the key lists match the converters", () => {
     options: "options:\n  - {title: T, recommended: true, body: B, pros: [p], cons: [c]}",
     form: "title: T\nsubmit: S\nquestions:\n  - {name: q, label: L, type: single, hint: H, required: true, other: false, choices: [{value: v, label: L, note: N, recommended: true}]}",
     review:
-      "title: T\nsubmit: S\npick: true\ncolumns: 2\nitems:\n  - {name: A, label: L, image: a.png, page: p.html, height: 90, body: B}",
+      "title: T\nsubmit: S\npick: true\npickMode: grouped\ncolumns: 2\nitems:\n  - {name: A, label: L, group: Card, image: a.png, page: p.html, height: 90, body: B}",
     suggest: "items:\n  - {label: L, text: X}",
     checklist: "title: T\nsubmit: S\nitems:\n  - {name: n, label: L, checked: true, note: N}",
     table:

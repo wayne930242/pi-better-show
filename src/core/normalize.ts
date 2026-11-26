@@ -4,6 +4,15 @@ import type { Recommended } from "./types.ts";
 
 export type Raw = Record<string, unknown>;
 
+/** A schema error at a known YAML path (the item path itself when a key is missing). */
+export class FieldError extends Error {
+  readonly path: (string | number)[];
+  constructor(path: (string | number)[], message: string) {
+    super(message);
+    this.path = path;
+  }
+}
+
 export function record(value: unknown, what: string): Raw {
   if (value === null || typeof value !== "object" || Array.isArray(value))
     throw new Error(`each ${what} must be a mapping`);

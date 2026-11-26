@@ -1,4 +1,4 @@
-import { NOTE_FIELD, reviewItemName } from "../core/blocks.ts";
+import { NOTE_FIELD, pickField, reviewItemName, reviewPicks, reviewSections } from "../core/blocks.ts";
 import { inlinePlain } from "../core/inline.ts";
 import type { ReviewData, ReviewItemData } from "../core/types.ts";
 import { type AnsweredFields, define, PbsElement } from "./base.ts";
@@ -52,17 +52,16 @@ interface Shown {
 
 export class PbsReview extends PbsElement<ReviewData> {
   static override css = reviewCss;
-  #picked: string | undefined;
+  #picked = new Set<number>();
   #comments: string[] | undefined;
   #note = "";
   /** The pictures of the current view in item order, which the lightbox steps through. */
   #shown: Shown[] = [];
   /** Each item's comment box of the current view, kept in step with the lightbox's box. */
   #boxes: HTMLTextAreaElement[] = [];
-  readonly #group = uid("pbs-pick");
 
   protected override reset(): void {
-    this.#picked = undefined;
+    this.#picked.clear();
     this.#comments = undefined;
     this.#note = "";
   }
@@ -74,23 +73,64 @@ export class PbsReview extends PbsElement<ReviewData> {
     const comments = this.#comments;
     this.#shown = [];
     this.#boxes = [];
-    const pickLabel = data.pick === undefined ? undefined : data.pick === true ? this.t("pick") : data.pick;
-    const items = data.items.map((item, index) => this.item(item, index, pickLabel, comments));
-    const grid = h(
-      "div",
-      {
-        part: "items",
-        class: "review-grid",
-        "data-columns": data.columns ? Math.min(6, Math.max(1, Math.floor(data.columns))) : null,
-      },
-      items,
-    );
+    const pickLabel =
+      typeof data.pick === "string" ? data.pick : data.pick || data.pickMode ? this.t("pick") : undefined;
+    const sections = reviewSections(data);
+    const firstChoice = new Map<string, HTMLInputElement>();
+    const grids = [...sections].map(([group, indices]) => {
+      const radioName = uid("pbs-pick");
+      const items = indices.map((index) => {
+        const item = data.items[index] as ReviewItemData;
+        const control =
+          pickLabel === undefined
+            ? undefined
+            : h("input", {
+                type: data.pickMode === "multi" ? "checkbox" : "radio",
+                name: radioName,
+                value: item.name,
+                checked: this.#picked.has(index),
+                required: group !== undefined,
+                "aria-label": `${pickLabel}: ${reviewItemName(item)}`,
+              });
+        if (group !== undefined && control && !firstChoice.has(group)) firstChoice.set(group, control);
+        control?.addEventListener("change", () => {
+          if (data.pickMode !== "multi") for (const i of indices) this.#picked.delete(i);
+          if (control.checked) this.#picked.add(index);
+          else this.#picked.delete(index);
+        });
+        return this.item(
+          item,
+          index,
+          control && h("label", { part: "pick", class: "pick" }, control, pickLabel),
+          comments,
+        );
+      });
+      const grid = h(
+        "div",
+        {
+          part: "items",
+          class: "review-grid",
+          "data-columns": data.columns ? Math.min(6, Math.max(1, Math.floor(data.columns))) : null,
+        },
+        items,
+      );
+      return group === undefined
+        ? grid
+        : h("fieldset", { part: "group", class: "question" }, h("legend", { class: "heading" }, group), grid);
+    });
     const { row, status } = submitRow(data.submit ? inlinePlain(data.submit) : this.t("send"));
     const send = () => {
       const named = data.items.map(reviewItemName);
       const fields: [string, string][] = [["title", data.title ? inlinePlain(data.title) : this.t("reviewFallback")]];
-      const picked = data.items.findIndex((item) => item.name === this.#picked);
-      if (picked >= 0) fields.push(["picked", named[picked] as string]);
+      for (const [group, indices] of sections) {
+        const selected = indices.filter((i) => this.#picked.has(i));
+        if (group !== undefined && selected.length === 0) {
+          status.textContent = this.t("unanswered") + group;
+          firstChoice.get(group)?.focus();
+          return;
+        }
+        for (const i of selected) fields.push([pickField(group), named[i] as string]);
+      }
       // A blank box means no feedback, so a review with every box blank is still an answer.
       comments.forEach((comment, index) => {
         if (comment.trim()) fields.push(["item", named[index] as string], ["comment", comment.trim()]);
@@ -105,7 +145,7 @@ export class PbsReview extends PbsElement<ReviewData> {
       send,
       { part: "review", class: "panel form-panel review" },
       title,
-      grid,
+      grids,
       noteBox(this.t("otherComments"), this.#note, (text) => {
         this.#note = text;
       }),
@@ -113,21 +153,10 @@ export class PbsReview extends PbsElement<ReviewData> {
     );
   }
 
-  private item(item: ReviewItemData, index: number, pickLabel: string | undefined, comments: string[]): HTMLElement {
+  private item(item: ReviewItemData, index: number, pick: HTMLElement | undefined, comments: string[]): HTMLElement {
     const name = reviewItemName(item);
     const head = h("div", { class: "head" }, h("span", { part: "item-title", class: "heading" }, inlineNodes(name)));
-    if (pickLabel !== undefined) {
-      const radio = h("input", {
-        type: "radio",
-        name: this.#group,
-        value: item.name,
-        checked: this.#picked === item.name,
-      });
-      radio.addEventListener("change", () => {
-        this.#picked = item.name;
-      });
-      head.append(h("label", { part: "pick", class: "pick" }, radio, pickLabel));
-    }
+    if (pick) head.append(pick);
     const media: Child[] = [];
     const config = configuration();
     if (item.image) media.push(this.image(item.image, name, index, config.imageUrl(item.image), comments));
@@ -158,7 +187,7 @@ export class PbsReview extends PbsElement<ReviewData> {
     this.#boxes[index] = note;
     return h(
       "article",
-      { part: "item", class: "panel item", "data-picked": this.#picked === item.name },
+      { part: "item", class: "panel item", "data-picked": this.#picked.has(index) },
       head,
       media.length > 0 && h("div", { part: "media", class: "media" }, media),
       item.body && h("div", { part: "body", class: "copy" }, prose(item.body)),
@@ -271,7 +300,6 @@ export class PbsReview extends PbsElement<ReviewData> {
     const values = (name: string) => sent.filter(([key]) => key === name).map(([, value]) => value);
     const items = values("item");
     const comments = values("comment");
-    const [picked] = values("picked");
     const [silent] = values("silent");
     const [note] = values(NOTE_FIELD);
     const row = (label: string, value: string) => h("div", null, h("dt", null, label), h("dd", null, value));
@@ -282,7 +310,7 @@ export class PbsReview extends PbsElement<ReviewData> {
       h(
         "dl",
         { part: "sent", class: "sent" },
-        picked && row(this.t("picked"), picked),
+        reviewPicks(sent).map(({ group, value }) => row(group ?? this.t("picked"), value)),
         items.map((item, index) => row(item, comments[index] ?? "")),
         silent && row(this.t("noFeedback"), silent),
         note && row(this.t("otherComments"), note),

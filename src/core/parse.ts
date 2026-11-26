@@ -1,6 +1,7 @@
-import { parse as parseYaml } from "yaml";
+import { isNode, LineCounter, parseDocument, parse as parseYaml } from "yaml";
 import * as legacy from "./blocks.ts";
 import * as added from "./blocks-new.ts";
+import { FieldError } from "./normalize.ts";
 import { tree } from "./tree.ts";
 import {
   type AlertData,
@@ -31,8 +32,20 @@ const fenceKinds = new Set<string>(BLOCK_KINDS.filter((kind) => kind !== "alert"
 type Convert<K extends BlockKind> = (source: string) => BlockDataMap[K];
 const yaml =
   <K extends BlockKind>(convert: (data: unknown) => BlockDataMap[K]): Convert<K> =>
-  (source) =>
-    convert(parseYaml(source));
+  (source) => {
+    try {
+      return convert(parseYaml(source));
+    } catch (error) {
+      if (!(error instanceof FieldError)) throw error;
+      const lines = new LineCounter();
+      const doc = parseDocument(source, { lineCounter: lines });
+      for (let n = error.path.length; n > 0; n--) {
+        const node = doc.getIn(error.path.slice(0, n), true);
+        if (isNode(node) && node.range) throw new Error(`line ${lines.linePos(node.range[0]).line}: ${error.message}`);
+      }
+      throw error;
+    }
+  };
 
 const CONVERTERS: { [K in Exclude<BlockKind, "alert">]: Convert<K> } = {
   mermaid: (source) => {

@@ -59,6 +59,31 @@ items:
   - {name: C, label: prototype, page: proto.html, height: 220}
 ```
 
+```review
+title: Pick a card style and a motion for each state
+pickMode: grouped
+columns: 2
+items:
+  - {group: Card, name: Flat, image: a.svg}
+  - {group: Card, name: Layered, image: b.svg}
+  - {group: Working, name: Spin}
+  - {group: Working, name: Sweep}
+  - {group: Waiting, name: Breathe}
+  - {group: Waiting, name: Blink}
+  - {group: Error, name: Shake}
+  - {group: Error, name: Flash}
+  - {group: Idle, name: Still}
+  - {group: Idle, name: Drift}
+```
+
+```review
+title: Which designs should we prototype?
+pickMode: multi
+items:
+  - {name: Flat, image: a.svg}
+  - {name: Layered, image: b.svg}
+```
+
 ```mindmap
 - Release
   - Build

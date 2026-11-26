@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- A `review` can now ask for one pick per group (`pickMode: grouped`, with a `group` on each item) or any number of picks (`pickMode: multi`). The reply lists every pick. Existing `pick` labels still select one favourite.
+
 ## 0.9.0 - 2026-11-25
 
 Minor bump: `Strings` has new lightbox words (hosts that build their own strings add them). The `review` answer's shape is unchanged.

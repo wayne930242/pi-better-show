@@ -72,9 +72,9 @@ const SHAPES: Record<string, Shape> = {
     },
   },
   review: {
-    keys: ["title", "submit", "pick", "columns", "items"],
+    keys: ["title", "submit", "pick", "pickMode", "columns", "items"],
     bare: "items",
-    lists: { items: items("item", ["name", "label", "image", "page", "height", "body"], ["name", "label"]) },
+    lists: { items: items("item", ["name", "label", "group", "image", "page", "height", "body"], ["name", "label"]) },
   },
   suggest: { keys: ["items"], bare: "items", lists: { items: items("suggestion", ["label", "text"]) } },
   checklist: {
@@ -297,18 +297,16 @@ export function checkBlocks(markdown: string, options: CheckOptions = {}): Block
       let at = line;
       let message = segment.error;
       let hint = "";
-      if (isYamlKind(kind)) {
+      const inner = sourceLine(context, segment.error);
+      if (inner !== undefined) {
+        at = line + inner;
+        message = segment.error.replace(/^line \d+: /, "");
+      } else if (isYamlKind(kind)) {
         const found = yamlError(context, segment.error);
         if (found) {
           at = line + found.line;
           message = found.message;
           hint = found.hint;
-        }
-      } else {
-        const inner = sourceLine(context, segment.error);
-        if (inner !== undefined) {
-          at = line + inner;
-          message = segment.error.replace(/^line \d+: /, "");
         }
       }
       out.push({

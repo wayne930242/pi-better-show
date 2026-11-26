@@ -38,7 +38,7 @@ A block is a fenced code block whose first word is the kind, or a GitHub alert; 
 | `cards` | YAML list of `{title, tone, body}` | |
 | `options` | YAML list of `{title, recommended, body, pros, cons}` | `pick` |
 | `form` | YAML `{title, submit, questions: [{name, label, type, hint, required, other, choices}]}` | `form` |
-| `review` | YAML `{title, submit, pick, columns, items: [{name, label, image, page, height, body}]}` | `review` |
+| `review` | YAML `{title, submit, pick, pickMode, columns, items: [{name, label, group, image, page, height, body}]}` | `review` |
 | `mindmap` | indented Markdown list; the first item is the root | |
 | `suggest` | YAML list of strings or `{label, text}` | `suggest` |
 | `checklist` | YAML `{title, submit, items: [string \| {name, label, checked, note}]}` | `checklist` |
@@ -170,7 +170,7 @@ User submitted a form in the HTML review pane:
 
 ### Review
 
-Designs, screenshots, or prototypes to compare: the reader comments on each item and, when `pick` is set, picks a favourite.
+Compare designs, screenshots, or prototypes on one page. Readers can comment on any item, pick a favourite, pick one item per group, or mark several items to keep.
 
 ~~~markdown
 ```review
@@ -200,6 +200,8 @@ No feedback on: B (light header)
 - `image` is a path relative to the Markdown file (an item may be just that path); `page` is the path of an HTML prototype, shown in a sandboxed frame of `height` pixels. Neither may leave the page's directory.
 - Items are named A, B, C... unless `name` says otherwise; the answer writes `name (label)`.
 - `pick: true` shows a radio per item (a string sets its label); `columns` is 1 to 6.
+- Set `pickMode: grouped` and give every item a `group`, for example `{name: Flat, group: Card}` and `{name: Spin, group: Working}`. Each group gets its own section, in order of first appearance. Send requires one pick in every group; the message names the group with its pick.
+- Set `pickMode: multi` for checkboxes. Readers can send any number of picks, including none. Either mode works without `pick`; add a string `pick` to label the controls. On its own, `pick: multi` is still a single-choice radio labelled “multi”.
 - A blank comment box means no feedback, so a review with every box blank is still an answer.
 - A picture opens enlarged in a lightbox, with the item's comment box beside it; Previous and Next (or the left and right arrow keys outside the box) step through the review's pictures, wrapping at the ends.
 
@@ -511,7 +513,7 @@ encodeAnswer(answer: Answer): string
 | Kind | `fields` | Text |
 |---|---|---|
 | `form` | one `[name, value]` per question | `User submitted a form ...` then `- name: value` lines |
-| `review` | `title`, `picked`, `item`/`comment` pairs, `silent` | `User reviewed "title":` ... |
+| `review` | `title`, `picked` (repeatable for multi) or `picked:<group>`, `item`/`comment` pairs, `silent` | `User reviewed "title":` ... |
 | `feedback` | `page`, `quote`/`comment` pairs, `overall` | `User feedback on the page "page":` ... (a quote is a selected passage, or a diagram element, see Markdown pages) |
 | `pick` | `[["picked", option]]` | `User picked "option" for "title".` |
 | `suggest` | `[["text", text]]` | the text itself |
@@ -528,7 +530,7 @@ validateAnswer(block: BlockSegment, answer: Answer): { ok: true } | { ok: false;
 <details>
 <summary>What is accepted</summary>
 
-`validateAnswer` is for a host that receives an `Answer` from an untrusted client. It accepts the answer when its `kind` fits the block (`options` takes `pick`, the others their own kind), every field names a question, choice, or item of that block, and there are at most 64 fields of at most 1,024 characters each. Several values for one name are accepted only for a `multi` form question (as repeated fields, or the joined value the form element sends); a `single` or `text` question, a pick, and a suggestion take one. A required question must be answered (an empty value or `(no answer)` is not an answer). On a `form` question without an `other` box, a value must be one of its choices. A `checklist` field is an item name once with `checked` or `unchecked`; a `review` may carry `picked` only when the block has `pick`. On refusal `reason` says why, for the host's error reply. Blocks that take no answer (display kinds) are refused.
+`validateAnswer` is for a host that receives an `Answer` from an untrusted client. It accepts the answer when its `kind` fits the block (`options` takes `pick`, the others their own kind), every field names a question, choice, or item of that block, and there are at most 64 fields of at most 1,024 characters each. In a form, several values for one name are accepted only for a `multi` question (as repeated fields, or the joined value the form element sends); a `single` or `text` question, a pick, and a suggestion take one. A required question must be answered (an empty value or `(no answer)` is not an answer). On a `form` question without an `other` box, a value must be one of its choices. A `checklist` field is an item name once with `checked` or `unchecked`; a `review` with `pick` alone accepts at most one `picked` field. A `multi` review accepts one `picked` per distinct selection; a `grouped` review requires exactly one `picked:<group>` per group, naming an item in that group. On refusal `reason` says why, for the host's error reply. Blocks that take no answer (display kinds) are refused.
 
 </details>
 
@@ -574,7 +576,7 @@ A host gives an element the block's parsed `data` and listens for `pbs-answer` (
 | `pbs-cards` | `cards` | `CardsData` | | `grid` `card` `title` `icon` `body` |
 | `pbs-options` | `options` | `OptionsData` | `pick` | `grid` `option` `title` `badge` `body` `pros` `cons` `actions` `pick` `status` |
 | `pbs-form` | `form` | `FormData` | `form` | `form` `title` `question` `label` `hint` `choices` `choice` `badge` `other` `textarea` `error` `actions` `submit` `status` `sent` |
-| `pbs-review` | `review` | `ReviewData` | `review` | `review` `title` `items` `item` `item-title` `pick` `media` `image` `enlarge` `frame` `unavailable` `body` `comment` `actions` `submit` `status` `lightbox` `lightbox-image` `lightbox-title` `position` `nav` `previous` `next` `lightbox-comment` `close` `sent` |
+| `pbs-review` | `review` | `ReviewData` | `review` | `review` `title` `group` `items` `item` `item-title` `pick` `media` `image` `enlarge` `frame` `unavailable` `body` `comment` `actions` `submit` `status` `lightbox` `lightbox-image` `lightbox-title` `position` `nav` `previous` `next` `lightbox-comment` `close` `sent` |
 | `pbs-mindmap` | `mindmap` | `MindmapData` | | `mindmap` `tree` `item` `node` `toggle` `label` `group` |
 | `pbs-suggest` | `suggest` | `SuggestData` | `suggest` | `suggest` `chips` `chip` `status` |
 | `pbs-checklist` | `checklist` | `ChecklistData` | `checklist` | `checklist` `title` `items` `item` `progress` `actions` `submit` `status` `sent` |
