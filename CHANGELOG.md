@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 0.10.0 - 2026-11-26
+
+Minor bump: a `review` has a new `pickMode` and a `group` per item, and its answer may carry one `picked:<group>` field per group or several `picked` fields. Hosts that validate or show review answers take the new fields when their pin moves.
+
 - A `review` can now ask for one pick per group (`pickMode: grouped`, with a `group` on each item) or any number of picks (`pickMode: multi`). The reply lists every pick. Existing `pick` labels still select one favourite.
 
 ## 0.9.0 - 2026-11-25
