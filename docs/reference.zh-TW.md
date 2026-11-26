@@ -1,4 +1,4 @@
-# pi-better-show 參考 <!-- source: docs/reference.md @ 8118b43 -->
+# pi-better-show 參考 <!-- source: docs/reference.md @ 54848be -->
 
 [README](../README.zh-TW.md) 背後的完整契約：每一種區塊、core、server、元素與 React 的 API，以及 `show_doc` extension 的細節。請找到需要的那一節，其餘可以略過。
 
@@ -744,6 +744,8 @@ Markdown 頁面是文章加區塊：文章是 Markdown，原始 HTML 保留為�
 選取一段文字就能留言，也可以在流程圖或狀態圖裡點節點、邊或 subgraph 標題（用鍵盤時 Tab 到這張圖，用方向鍵移到元素，再按 Enter 或空白鍵；在面板裡按 Escape 會回到它，除非這個 Escape 是在結束輸入法的組字）。
 面板會收集留言與整體意見，在一則訊息中送出；它的草稿能撐過 agent 修改造成的重新載入。
 它是一般的 `feedback` 答案：每則 quote 加上它的留言，最後是 `Overall: …`。
+面板的「複製」按鈕會把同一則訊息放進剪貼簿，草稿留著，送不出去時可以貼到 pi。
+任何沒送到 agent 的答案，不論來自區塊、面板或 agent 頁面，都會留下一則關閉前不會消失的提示：沒送出的原因（頁面伺服器沒有回應，代表 pi 重新載入或結束了）、agent 本來會讀到的訊息，以及「複製」按鈕；區塊會重新打開，可以再試一次。
 
 ### 圖的留言
 
