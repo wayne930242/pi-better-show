@@ -169,9 +169,10 @@ export function review(data: unknown): ReviewData {
   const groupOf = (entry: Record<string, unknown>, index: number): string | undefined => {
     const path = Array.isArray(data) ? [index, "group"] : ["items", index, "group"];
     if (pickMode === "grouped") {
-      if (typeof entry.group !== "string" || !entry.group.trim())
-        throw new FieldError(path, `item ${index + 1} needs a non-empty group name`);
-      return entry.group.trim();
+      // A scalar group reads as text, as `name` and `label` do: YAML reads an unquoted 2024 or yes as a number or a boolean.
+      const group = typeof entry.group === "object" ? undefined : text(entry.group, "group");
+      if (!group) throw new FieldError(path, `item ${index + 1} needs a non-empty group name`);
+      return group;
     }
     if ("group" in entry) throw new FieldError(path, "group requires pickMode: grouped");
     return undefined;

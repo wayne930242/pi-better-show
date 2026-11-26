@@ -22,6 +22,12 @@ test("grouped review retains the item groups and renders sections in first appea
   expect(toText(parse(multi), { flavor: "line", lang: "zh-TW" })).toContain("可複選");
 });
 
+test("a group YAML reads as a number or a boolean is its text", () => {
+  const scalars = source("pickMode: grouped\nitems:\n  - {group: 2024, name: A}\n  - {group: true, name: B}");
+  expect(checkBlocks(scalars)).toEqual([]);
+  expect(review(scalars).data.items.map((item) => item.group)).toEqual(["2024", "true"]);
+});
+
 test("line-numbered schema problems identify the mode or the offending group", () => {
   for (const [body, line] of [
     ["pickMode: many\nitems: [a]", 4],
