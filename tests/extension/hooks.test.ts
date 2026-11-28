@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { fileURLToPath } from "node:url";
 import { BLOCK_KINDS } from "../../src/core/types.ts";
 import { AUTO_OPEN_ENV } from "../../src/extension/index.ts";
 import { DESCRIPTION } from "../../src/extension/tool.ts";
@@ -23,37 +24,26 @@ describe("the show_doc tool", () => {
     expect(tool.parameters.required.sort()).toEqual(["paths", "reason"]);
   });
 
-  test("its description names every block kind, the views, and the sandboxed pages", () => {
+  test("the short tool description keeps the views and points to syntax for every block kind", async () => {
+    const ref = fileURLToPath(new URL("../../src/extension/authoring.md", import.meta.url));
+    expect(DESCRIPTION).toContain(`read ${ref}`);
     for (const word of [
-      "[!NOTE]",
-      "```mermaid",
-      "```diff",
-      "```cards",
-      "```options",
-      "```form",
-      "```review",
-      "```mindmap",
-      "```suggest",
-      "```checklist",
-      "```table",
-      "```steps",
-      "```stats",
-      "```tree",
-      "pbs-tree",
       'view "page"',
       'view "edit"',
       "PI_BETTER_SHOW_EDITOR",
       "cgi-bin:pi-answer",
       "pi-kit",
-      "feedback panel",
-      ".tsx",
+      "pbs-tree",
     ]) {
       expect(DESCRIPTION).toContain(word);
     }
-    expect(DESCRIPTION).toMatch(/Markdown, HTML, and TSX page has a feedback panel/);
-    for (const kind of BLOCK_KINDS)
-      expect(DESCRIPTION.toLowerCase()).toContain(kind === "alert" ? "alert" : `\`\`\`${kind}`);
-    expect(DESCRIPTION).not.toMatch(/herdr|nvim|chawan|terminal-browser/i);
+    expect(DESCRIPTION).toMatch(/Markdown, HTML and React pages have a feedback panel/);
+    expect(DESCRIPTION.replace(ref, "authoring.md")).not.toMatch(/herdr|nvim|chawan|terminal-browser/i);
+
+    const doc = await Bun.file(ref).text();
+    for (const kind of BLOCK_KINDS) expect(doc).toContain(kind === "alert" ? "[!NOTE]" : `\`${kind}\``);
+    expect(doc).toContain("`PbsBlock`");
+    expect(doc).toContain("`.tsx`");
   });
 
   test("returns at once with what it opened, and sends the agent nothing", async () => {
